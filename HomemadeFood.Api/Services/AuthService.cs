@@ -3,15 +3,18 @@ using HomemadeFood.Api.DTOs.Auth;
 using HomemadeFood.Api.Entities;
 using HomemadeFood.Api.Interfaces;
 
+
 namespace HomemadeFood.Api.Services
 {
     public class AuthService : IAuthService
     {
         private readonly IUserRepository _userRepository;
+        private readonly IJwtTokenGenerator _jwtTokenGenerator;
 
-        public AuthService(IUserRepository userRepository)
+        public AuthService(IUserRepository userRepository, IJwtTokenGenerator jwtTokenGenerator)
         {
             _userRepository = userRepository;
+            _jwtTokenGenerator = jwtTokenGenerator;
         }
 
         public async Task<bool> RegisterAsync(RegisterRequest request)
@@ -45,7 +48,30 @@ namespace HomemadeFood.Api.Services
 
         public async Task<LoginResponse?> LoginAsync(LoginRequest request)
         {
-            return await Task.FromResult<LoginResponse?>(null);
+            var user = await _userRepository.GetByEmailAsync(request.Email);
+
+            if (user == null)
+            {
+                return null;
+            }
+
+            var isPasswordValid = BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash);
+
+            if (!isPasswordValid)
+            {
+                return null;
+            }
+
+            var token = _jwtTokenGenerator.GenerateToken(user);
+
+            return new LoginResponse
+            {
+                UserId = user.Id,
+                FullName = user.FullName,
+                Email = user.Email,
+                Role = user.Role,
+                Token = token
+            };
         }
     }
 }

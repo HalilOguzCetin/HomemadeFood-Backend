@@ -32,5 +32,17 @@ namespace HomemadeFood.Api.Controllers
 
             return Ok("Kullanıcı başarıyla kaydedildi.");
         }
+        [HttpPost("login")]
+        public async Task<IActionResult> Login(LoginRequest request)
+        {
+            var result = await _authService.LoginAsync(request);
+
+            if (result == null)
+            {
+                return Unauthorized("Email veya şifre hatalı.");
+            }
+
+            return Ok(result);
+        }
     }
 }
