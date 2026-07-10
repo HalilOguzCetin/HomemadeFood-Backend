@@ -1,6 +1,7 @@
 ﻿using HomemadeFood.Api.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using HomemadeFood.Api.DTOs.Auth;
+using Microsoft.AspNetCore.Authorization;
 
 namespace HomemadeFood.Api.Controllers
 {
@@ -42,7 +43,34 @@ namespace HomemadeFood.Api.Controllers
                 return Unauthorized("Email veya şifre hatalı.");
             }
 
+
             return Ok(result);
+        }
+        [Authorize]
+        [HttpGet("profile")]
+        public IActionResult Profile()
+        {
+            return Ok("Bu endpoint'e sadece giriş yapan kullanıcı erişebilir.");
+        }
+        [Authorize(Roles = "Customer")]
+        [HttpGet("customer-area")]
+        public IActionResult CustomerArea()
+        {
+            return Ok("Customer yetkisi doğrulandı.");
+        }
+
+        [Authorize(Roles = "Producer")]
+        [HttpGet("producer-area")]
+        public IActionResult ProducerArea()
+        {
+            return Ok("Producer yetkisi doğrulandı.");
+        }
+
+        [Authorize(Roles = "Admin")]
+        [HttpGet("admin-area")]
+        public IActionResult AdminArea()
+        {
+            return Ok("Admin yetkisi doğrulandı.");
         }
     }
 }
