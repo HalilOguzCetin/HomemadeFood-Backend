@@ -34,7 +34,7 @@ namespace HomemadeFood.Api.Services
                 Email = request.Email,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
                 Phone = request.Phone,
-                Role = request.Role,
+                Role = "Customer",
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow
             };
