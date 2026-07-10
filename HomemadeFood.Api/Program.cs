@@ -17,6 +17,9 @@ builder.Services.AddControllers();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
+builder.Services.AddScoped<IProducerRepository, ProducerRepository>();
+builder.Services.AddScoped<IProducerService, ProducerService>();
+builder.Services.AddScoped<IAdminService, AdminService>();
 var jwtSettings = builder.Configuration.GetSection("Jwt");
 var key = Encoding.UTF8.GetBytes(jwtSettings["Key"]!);
 
