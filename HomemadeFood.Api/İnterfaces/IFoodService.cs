@@ -22,5 +22,6 @@ namespace HomemadeFood.Api.Interfaces
         Task<bool> DeleteFoodAsync(
             int userId,
             int foodId);
+        Task<FoodResponse?> GetAvailableFoodByIdAsync(int foodId);
     }
 }

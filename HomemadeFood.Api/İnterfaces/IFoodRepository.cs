@@ -21,5 +21,6 @@ namespace HomemadeFood.Api.Interfaces
      string? search);
 
         Task SaveChangesAsync();
+        Task<Food?> GetAvailableFoodByIdAsync(int foodId);
     }
 }
