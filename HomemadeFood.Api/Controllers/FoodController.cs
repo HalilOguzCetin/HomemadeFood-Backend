@@ -17,6 +17,16 @@ namespace HomemadeFood.Api.Controllers
         {
             _foodService = foodService;
         }
+        [AllowAnonymous]
+        [HttpGet]
+        public async Task<IActionResult> GetAvailableFoods()
+        {
+            var foods =
+                await _foodService
+                    .GetAvailableFoodsAsync();
+
+            return Ok(foods);
+        }
 
         [HttpPost]
         public async Task<IActionResult> CreateFood(

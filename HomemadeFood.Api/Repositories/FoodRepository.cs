@@ -18,6 +18,21 @@ namespace HomemadeFood.Api.Repositories
         {
             await _context.Foods.AddAsync(food);
         }
+        public async Task<List<Food>> GetAvailableFoodsAsync()
+        {
+            return await _context.Foods
+                .AsNoTracking()
+                .Include(x => x.Category)
+                .Include(x => x.ProducerProfile)
+                .Where(x =>
+                    x.IsAvailable &&
+                    x.Category.IsActive &&
+                    x.ProducerProfile.IsApproved &&
+                    x.ProducerProfile.IsAvailable &&
+                    x.ProducerProfile.VerificationStatus == "Approved")
+                .OrderByDescending(x => x.CreatedAt)
+                .ToListAsync();
+        }
 
         public async Task<List<Food>>
             GetByProducerProfileIdAsync(int producerProfileId)
