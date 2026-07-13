@@ -16,7 +16,7 @@ namespace HomemadeFood.Api.Interfaces
         Task<Category?> GetActiveCategoryByIdAsync(
             int categoryId);
 
-        
+        Task<List<Food>> GetAvailableFoodsAsync();
 
         Task SaveChangesAsync();
     }
