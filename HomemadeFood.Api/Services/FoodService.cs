@@ -66,11 +66,15 @@ namespace HomemadeFood.Api.Services
             return MapToResponse(food);
         }
         public async Task<List<FoodResponse>>
-    GetAvailableFoodsAsync()
+    GetAvailableFoodsAsync(
+        int? categoryId,
+        string? search)
         {
             var foods =
                 await _foodRepository
-                    .GetAvailableFoodsAsync();
+                    .GetAvailableFoodsAsync(
+                        categoryId,
+                        search);
 
             return foods
                 .Select(MapToResponse)

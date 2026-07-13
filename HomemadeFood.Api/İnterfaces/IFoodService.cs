@@ -15,7 +15,9 @@ namespace HomemadeFood.Api.Interfaces
             int userId,
             int foodId,
             UpdateFoodRequest request);
-        Task<List<FoodResponse>> GetAvailableFoodsAsync();
+        Task<List<FoodResponse>> GetAvailableFoodsAsync(
+    int? categoryId,
+    string? search);
 
         Task<bool> DeleteFoodAsync(
             int userId,
