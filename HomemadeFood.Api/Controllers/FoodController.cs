@@ -37,6 +37,28 @@ namespace HomemadeFood.Api.Controllers
 
             return Ok(foods);
         }
+        [AllowAnonymous]
+        [HttpGet("{id:int}")]
+        public async Task<IActionResult> GetFoodById(int id)
+        {
+            if (id <= 0)
+            {
+                return BadRequest(
+                    "Yemek ID değeri sıfırdan büyük olmalıdır.");
+            }
+
+            var food =
+                await _foodService
+                    .GetAvailableFoodByIdAsync(id);
+
+            if (food == null)
+            {
+                return NotFound(
+                    "Yemek bulunamadı veya şu anda satışta değil.");
+            }
+
+            return Ok(food);
+        }
 
         [HttpPost]
         public async Task<IActionResult> CreateFood(
