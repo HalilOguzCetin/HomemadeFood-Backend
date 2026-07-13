@@ -11,6 +11,7 @@ namespace HomemadeFood.Api.Interfaces
         Task<List<ProducerProfile>> GetPendingApplicationsAsync();
 
         Task<ProducerProfile?> GetByIdWithUserAsync(int producerProfileId);
+        Task<ProducerProfile?> GetApprovedByUserIdAsync(int userId);
 
         Task SaveChangesAsync();
     }

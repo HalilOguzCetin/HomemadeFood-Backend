@@ -39,6 +39,15 @@ namespace HomemadeFood.Api.Repositories
                 .Include(x => x.User)
                 .FirstOrDefaultAsync(x => x.Id == producerProfileId);
         }
+        public async Task<ProducerProfile?>
+    GetApprovedByUserIdAsync(int userId)
+        {
+            return await _context.ProducerProfiles
+                .FirstOrDefaultAsync(x =>
+                    x.UserId == userId &&
+                    x.IsApproved &&
+                    x.VerificationStatus == "Approved");
+        }
 
         public async Task SaveChangesAsync()
         {
