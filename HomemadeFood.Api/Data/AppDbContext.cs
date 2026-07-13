@@ -24,6 +24,7 @@ namespace HomemadeFood.Api.Data
         public DbSet<OrderItem> OrderItems { get; set; }
 
         public DbSet<Review> Reviews { get; set; }
+        public DbSet<Favorite> Favorites { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -44,6 +45,25 @@ namespace HomemadeFood.Api.Data
                 .WithMany(u => u.Reviews)
                 .HasForeignKey(r => r.CustomerId)
                 .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<Favorite>()
+    .HasOne(f => f.User)
+    .WithMany(u => u.Favorites)
+    .HasForeignKey(f => f.UserId)
+    .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Favorite>()
+                .HasOne(f => f.Food)
+                .WithMany(food => food.Favorites)
+                .HasForeignKey(f => f.FoodId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Favorite>()
+                .HasIndex(f => new
+                {
+                    f.UserId,
+                    f.FoodId
+                })
+                .IsUnique();
         }
     }
 }
