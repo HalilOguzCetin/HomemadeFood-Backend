@@ -20,6 +20,8 @@ builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
 builder.Services.AddScoped<IProducerRepository, ProducerRepository>();
 builder.Services.AddScoped<IProducerService, ProducerService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
+builder.Services.AddScoped<IFoodRepository, FoodRepository>();
+builder.Services.AddScoped<IFoodService, FoodService>();
 var jwtSettings = builder.Configuration.GetSection("Jwt");
 var key = Encoding.UTF8.GetBytes(jwtSettings["Key"]!);
 
