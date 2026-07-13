@@ -18,9 +18,11 @@ namespace HomemadeFood.Api.Repositories
         {
             await _context.Foods.AddAsync(food);
         }
-        public async Task<List<Food>> GetAvailableFoodsAsync()
+        public async Task<List<Food>> GetAvailableFoodsAsync(
+     int? categoryId,
+     string? search)
         {
-            return await _context.Foods
+            var query = _context.Foods
                 .AsNoTracking()
                 .Include(x => x.Category)
                 .Include(x => x.ProducerProfile)
@@ -30,6 +32,28 @@ namespace HomemadeFood.Api.Repositories
                     x.ProducerProfile.IsApproved &&
                     x.ProducerProfile.IsAvailable &&
                     x.ProducerProfile.VerificationStatus == "Approved")
+                .AsQueryable();
+
+            if (categoryId.HasValue)
+            {
+                query = query.Where(x =>
+                    x.CategoryId == categoryId.Value);
+            }
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var searchValue = search.Trim();
+
+                query = query.Where(x =>
+                    EF.Functions.Like(
+                        x.Name,
+                        $"%{searchValue}%") ||
+                    EF.Functions.Like(
+                        x.Description,
+                        $"%{searchValue}%"));
+            }
+
+            return await query
                 .OrderByDescending(x => x.CreatedAt)
                 .ToListAsync();
         }

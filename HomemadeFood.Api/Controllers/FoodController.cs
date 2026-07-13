@@ -19,11 +19,21 @@ namespace HomemadeFood.Api.Controllers
         }
         [AllowAnonymous]
         [HttpGet]
-        public async Task<IActionResult> GetAvailableFoods()
+        public async Task<IActionResult> GetAvailableFoods(
+    [FromQuery] int? categoryId,
+    [FromQuery] string? search)
         {
+            if (categoryId.HasValue && categoryId.Value <= 0)
+            {
+                return BadRequest(
+                    "Kategori ID değeri sıfırdan büyük olmalıdır.");
+            }
+
             var foods =
                 await _foodService
-                    .GetAvailableFoodsAsync();
+                    .GetAvailableFoodsAsync(
+                        categoryId,
+                        search);
 
             return Ok(foods);
         }
