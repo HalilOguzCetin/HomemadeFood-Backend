@@ -54,5 +54,16 @@ namespace HomemadeFood.Api.Repositories
         {
             _context.CartItems.Remove(cartItem);
         }
+        public async Task<Cart?>
+    GetForOrderCreationAsync(int userId)
+        {
+            return await _context.Carts
+                .Include(x => x.ProducerProfile)
+                .Include(x => x.Items)
+                    .ThenInclude(x => x.Food)
+                        .ThenInclude(x => x.Category)
+                .FirstOrDefaultAsync(x =>
+                    x.UserId == userId);
+        }
     }
 }
