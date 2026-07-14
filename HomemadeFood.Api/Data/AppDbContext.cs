@@ -98,6 +98,23 @@ namespace HomemadeFood.Api.Data
                     ci.FoodId
                 })
                 .IsUnique();
+            modelBuilder.Entity<Order>()
+    .HasOne(o => o.ProducerProfile)
+    .WithMany(p => p.Orders)
+    .HasForeignKey(o => o.ProducerProfileId)
+    .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<OrderItem>()
+                .HasOne(oi => oi.Order)
+                .WithMany(o => o.OrderItems)
+                .HasForeignKey(oi => oi.OrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<OrderItem>()
+                .HasOne(oi => oi.Food)
+                .WithMany(f => f.OrderItems)
+                .HasForeignKey(oi => oi.FoodId)
+                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

@@ -16,5 +16,6 @@ namespace HomemadeFood.Api.Interfaces
 
         Task SaveChangesAsync();
         void RemoveItem(CartItem cartItem);
+        Task<Cart?> GetForOrderCreationAsync(int userId);
     }
 }
