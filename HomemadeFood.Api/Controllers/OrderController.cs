@@ -89,6 +89,34 @@ namespace HomemadeFood.Api.Controllers
 
             return Ok(order);
         }
+        [HttpPut("{id:int}/cancel")]
+        public async Task<IActionResult> CancelOrder(int id)
+        {
+            if (id <= 0)
+            {
+                return BadRequest(
+                    "Sipariş ID değeri sıfırdan büyük olmalıdır.");
+            }
+
+            if (!TryGetUserId(out var customerId))
+            {
+                return Unauthorized(
+                    "Kullanıcı bilgisi alınamadı.");
+            }
+
+            var order =
+                await _orderService.CancelOrderAsync(
+                    customerId,
+                    id);
+
+            if (order == null)
+            {
+                return BadRequest(
+                    "Sipariş iptal edilemedi. Sipariş bulunamamış, size ait olmayabilir veya durumu Pending olmayabilir.");
+            }
+
+            return Ok(order);
+        }
 
         private bool TryGetUserId(out int userId)
         {

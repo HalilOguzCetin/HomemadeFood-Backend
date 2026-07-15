@@ -14,5 +14,8 @@ namespace HomemadeFood.Api.Interfaces
         Task<OrderResponse?> GetMyOrderByIdAsync(
             int customerId,
             int orderId);
+        Task<OrderResponse?> CancelOrderAsync(
+    int customerId,
+    int orderId);
     }
 }

@@ -45,6 +45,18 @@ namespace HomemadeFood.Api.Repositories
                     x.Id == orderId &&
                     x.CustomerId == customerId);
         }
+        public async Task<Order?>
+    GetTrackedByIdAndCustomerIdAsync(
+        int orderId,
+        int customerId)
+        {
+            return await _context.Orders
+                .Include(x => x.ProducerProfile)
+                .Include(x => x.OrderItems)
+                .FirstOrDefaultAsync(x =>
+                    x.Id == orderId &&
+                    x.CustomerId == customerId);
+        }
         public async Task<List<Order>>
     GetByProducerProfileIdAsync(
         int producerProfileId)
