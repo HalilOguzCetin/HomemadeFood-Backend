@@ -47,5 +47,6 @@
 
         public ICollection<OrderItem> OrderItems { get; set; }
             = new List<OrderItem>();
+        public Review? Review { get; set; }
     }
 }

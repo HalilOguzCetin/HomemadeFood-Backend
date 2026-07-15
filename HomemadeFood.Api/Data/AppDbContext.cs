@@ -48,6 +48,17 @@ namespace HomemadeFood.Api.Data
                 .WithMany(u => u.Reviews)
                 .HasForeignKey(r => r.CustomerId)
                 .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<Review>()
+    .HasOne(r => r.Order)
+    .WithOne(o => o.Review)
+    .HasForeignKey<Review>(r => r.OrderId)
+    .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Review>()
+                .HasOne(r => r.ProducerProfile)
+                .WithMany(p => p.Reviews)
+                .HasForeignKey(r => r.ProducerProfileId)
+                .OnDelete(DeleteBehavior.Restrict);
             modelBuilder.Entity<Favorite>()
     .HasOne(f => f.User)
     .WithMany(u => u.Favorites)
