@@ -14,5 +14,11 @@ namespace HomemadeFood.Api.Interfaces
             int customerId);
 
         Task SaveChangesAsync();
+        Task<List<Order>> GetByProducerProfileIdAsync(
+    int producerProfileId);
+
+        Task<Order?> GetTrackedByIdAndProducerProfileIdAsync(
+            int orderId,
+            int producerProfileId);
     }
 }
