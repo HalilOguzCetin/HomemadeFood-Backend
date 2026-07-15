@@ -206,6 +206,48 @@ namespace HomemadeFood.Api.Services
 
             return MapToResponse(order);
         }
+        public async Task<OrderResponse?> CancelOrderAsync(
+    int customerId,
+    int orderId)
+        {
+            var order =
+                await _orderRepository
+                    .GetTrackedByIdAndCustomerIdAsync(
+                        orderId,
+                        customerId);
+
+            if (order == null)
+            {
+                return null;
+            }
+
+            // Müşteri yalnızca üretici henüz kabul etmeden
+            // Pending durumundaki siparişi iptal edebilir.
+            if (!string.Equals(
+                    order.Status,
+                    "Pending",
+                    StringComparison.Ordinal))
+            {
+                return null;
+            }
+
+            var totalQuantity =
+                order.OrderItems.Sum(x => x.Quantity);
+
+            // Sipariş oluşturulurken azaltılan kapasiteyi geri ver.
+            order.ProducerProfile.RemainingCapacity =
+                Math.Min(
+                    order.ProducerProfile.DailyCapacity,
+                    order.ProducerProfile.RemainingCapacity
+                    + totalQuantity);
+
+            order.Status = "Cancelled";
+            order.StatusUpdatedAt = DateTime.UtcNow;
+
+            await _orderRepository.SaveChangesAsync();
+
+            return MapToResponse(order);
+        }
 
         private static OrderResponse MapToResponse(
             OrderEntity order)

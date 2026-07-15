@@ -20,5 +20,8 @@ namespace HomemadeFood.Api.Interfaces
         Task<Order?> GetTrackedByIdAndProducerProfileIdAsync(
             int orderId,
             int producerProfileId);
+        Task<Order?> GetTrackedByIdAndCustomerIdAsync(
+    int orderId,
+    int customerId);
     }
 }
