@@ -51,6 +51,7 @@ namespace HomemadeFood.Api.Repositories
         int customerId)
         {
             return await _context.Orders
+                .Include(x => x.Customer)
                 .Include(x => x.ProducerProfile)
                 .Include(x => x.OrderItems)
                 .FirstOrDefaultAsync(x =>
