@@ -1,5 +1,6 @@
 ﻿using HomemadeFood.Api.DTOs.Admin;
 using HomemadeFood.Api.Interfaces;
+using HomemadeFood.Api.Constants;
 
 namespace HomemadeFood.Api.Services
 {
@@ -46,17 +47,19 @@ namespace HomemadeFood.Api.Services
                 return false;
             }
 
-            if (producerProfile.VerificationStatus != "Pending")
+            if (producerProfile.VerificationStatus !=
+    ProducerVerificationStatuses.Pending)
             {
                 return false;
             }
 
             producerProfile.IsApproved = true;
-            producerProfile.VerificationStatus = "Approved";
+            producerProfile.VerificationStatus =
+    ProducerVerificationStatuses.Approved;
             producerProfile.ApprovedAt = DateTime.UtcNow;
             producerProfile.ApprovedByAdminId = adminUserId;
 
-            producerProfile.User.Role = "Producer";
+            producerProfile.User.Role = UserRoles.Producer;
 
             await _producerRepository.SaveChangesAsync();
 

@@ -1,4 +1,5 @@
-﻿using HomemadeFood.Api.DTOs.Producer;
+﻿using HomemadeFood.Api.Constants;
+using HomemadeFood.Api.DTOs.Producer;
 using HomemadeFood.Api.Entities;
 using HomemadeFood.Api.Interfaces;
 
@@ -7,17 +8,25 @@ namespace HomemadeFood.Api.Services
     public class ProducerService : IProducerService
     {
         private readonly IProducerRepository _producerRepository;
+        private readonly IAppClock _appClock;
 
-        public ProducerService(IProducerRepository producerRepository)
+        public ProducerService(
+            IProducerRepository producerRepository,
+            IAppClock appClock)
         {
             _producerRepository = producerRepository;
+            _appClock = appClock;
         }
 
         public async Task<bool> ApplyAsync(
             int userId,
             ProducerApplicationRequest request)
         {
-            if (await _producerRepository.HasApplicationAsync(userId))
+            var hasApplication =
+                await _producerRepository
+                    .HasApplicationAsync(userId);
+
+            if (hasApplication)
             {
                 return false;
             }
@@ -30,22 +39,49 @@ namespace HomemadeFood.Api.Services
             var producerProfile = new ProducerProfile
             {
                 UserId = userId,
-                BusinessName = request.BusinessName,
-                Description = request.Description,
-                Address = request.Address,
-                Latitude = request.Latitude,
-                Longitude = request.Longitude,
-                DailyCapacity = request.DailyCapacity,
-                RemainingCapacity = request.DailyCapacity,
+
+                BusinessName =
+                    request.BusinessName.Trim(),
+
+                Description =
+                    request.Description.Trim(),
+
+                Address =
+                    request.Address.Trim(),
+
+                Latitude =
+                    request.Latitude,
+
+                Longitude =
+                    request.Longitude,
+
+                DailyCapacity =
+                    request.DailyCapacity,
+
+                RemainingCapacity =
+                    request.DailyCapacity,
+
+                CapacityDate =
+                    _appClock.TurkeyToday,
+
                 Rating = 0,
+
                 IsAvailable = true,
+
                 IsApproved = false,
-                VerificationStatus = "Pending",
-                CreatedAt = DateTime.UtcNow
+
+                VerificationStatus =
+                    ProducerVerificationStatuses.Pending,
+
+                CreatedAt =
+                    _appClock.UtcNow
             };
 
-            await _producerRepository.AddAsync(producerProfile);
-            await _producerRepository.SaveChangesAsync();
+            await _producerRepository
+                .AddAsync(producerProfile);
+
+            await _producerRepository
+                .SaveChangesAsync();
 
             return true;
         }

@@ -3,6 +3,7 @@ using HomemadeFood.Api.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using HomemadeFood.Api.Constants;
 
 namespace HomemadeFood.Api.Controllers
 {
@@ -17,7 +18,7 @@ namespace HomemadeFood.Api.Controllers
             _producerService = producerService;
         }
 
-        [Authorize(Roles = "Customer")]
+        [Authorize(Roles = UserRoles.Customer)]
         [HttpPost("apply")]
         public async Task<IActionResult> Apply(ProducerApplicationRequest request)
         {

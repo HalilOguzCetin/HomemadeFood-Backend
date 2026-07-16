@@ -1,4 +1,6 @@
-﻿namespace HomemadeFood.Api.Entities
+﻿using HomemadeFood.Api.Constants;
+
+namespace HomemadeFood.Api.Entities
 {
     public class ProducerProfile
     {
@@ -22,13 +24,14 @@
         public int DailyCapacity { get; set; }
 
         public int RemainingCapacity { get; set; }
+        public DateOnly? CapacityDate { get; set; }
 
         public bool IsAvailable { get; set; } = true;
 
         public bool IsApproved { get; set; } = false;
 
-        public string VerificationStatus { get; set; } = "Pending";
-
+        public string VerificationStatus { get; set; }
+    = ProducerVerificationStatuses.Pending;
         public DateTime? ApprovedAt { get; set; }
 
         public int? ApprovedByAdminId { get; set; }

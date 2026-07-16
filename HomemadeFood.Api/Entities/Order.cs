@@ -1,4 +1,5 @@
-﻿namespace HomemadeFood.Api.Entities
+﻿using HomemadeFood.Api.Constants;
+namespace HomemadeFood.Api.Entities
 {
     public class Order
     {
@@ -27,15 +28,14 @@
 
         // CashOnDelivery veya CardOnDelivery
         public string PaymentMethod { get; set; }
-            = "CashOnDelivery";
-
+    = PaymentMethods.CashOnDelivery;
         public string CustomerNote { get; set; }
             = string.Empty;
 
         public decimal TotalPrice { get; set; }
 
         public string Status { get; set; }
-            = "Pending";
+     = OrderStatuses.Pending;
 
         public decimal SuitabilityScore { get; set; }
 

@@ -32,6 +32,148 @@ namespace HomemadeFood.Api.Data
         {
             base.OnModelCreating(modelBuilder);
 
+            modelBuilder.Entity<Review>(entity =>
+            {
+                entity.Property(x => x.Comment)
+                    .HasMaxLength(1000)
+                    .IsRequired();
+            });
+
+            modelBuilder.Entity<OrderItem>(entity =>
+            {
+                entity.Property(x => x.FoodName)
+                    .HasMaxLength(100)
+                    .IsRequired();
+
+                entity.Property(x => x.UnitPrice)
+                    .HasPrecision(18, 2);
+
+                entity.Property(x => x.TotalPrice)
+                    .HasPrecision(18, 2);
+            });
+
+            modelBuilder.Entity<Order>(entity =>
+            {
+                entity.Property(x => x.DeliveryAddressTitle)
+                    .HasMaxLength(50)
+                    .IsRequired();
+
+                entity.Property(x => x.DeliveryAddress)
+                    .HasMaxLength(500)
+                    .IsRequired();
+
+                entity.Property(x => x.PaymentMethod)
+                    .HasMaxLength(30)
+                    .IsRequired();
+
+                entity.Property(x => x.CustomerNote)
+                    .HasMaxLength(500)
+                    .IsRequired();
+
+                entity.Property(x => x.Status)
+                    .HasMaxLength(30)
+                    .IsRequired();
+
+                entity.Property(x => x.TotalPrice)
+                    .HasPrecision(18, 2);
+
+                entity.Property(x => x.SuitabilityScore)
+                    .HasPrecision(5, 2);
+            });
+
+            modelBuilder.Entity<Address>(entity =>
+            {
+                entity.Property(x => x.Title)
+                    .HasMaxLength(50)
+                    .IsRequired();
+
+                entity.Property(x => x.FullAddress)
+                    .HasMaxLength(500)
+                    .IsRequired();
+            });
+
+            modelBuilder.Entity<Food>(entity =>
+            {
+                entity.Property(x => x.Name)
+                    .HasMaxLength(100)
+                    .IsRequired();
+
+                entity.Property(x => x.Description)
+                    .HasMaxLength(1000)
+                    .IsRequired();
+
+                entity.Property(x => x.ImageUrl)
+                    .HasMaxLength(500)
+                    .IsRequired();
+
+                entity.Property(x => x.Price)
+                    .HasPrecision(18, 2);
+            });
+
+            modelBuilder.Entity<Category>(entity =>
+            {
+                entity.Property(x => x.Name)
+                    .HasMaxLength(100)
+                    .IsRequired();
+
+                entity.Property(x => x.Description)
+                    .HasMaxLength(500)
+                    .IsRequired();
+            });
+
+            modelBuilder.Entity<ProducerProfile>(entity =>
+            {
+                entity.Property(x => x.BusinessName)
+                    .HasMaxLength(150)
+                    .IsRequired();
+
+                entity.Property(x => x.Description)
+                    .HasMaxLength(1000)
+                    .IsRequired();
+
+                entity.Property(x => x.Address)
+                    .HasMaxLength(500)
+                    .IsRequired();
+
+                entity.Property(x => x.VerificationStatus)
+                    .HasMaxLength(30)
+                    .IsRequired();
+
+                entity.Property(x => x.Rating)
+                    .HasPrecision(3, 2);
+                entity.Property(x => x.CapacityDate)
+                    .HasColumnType("date");
+
+
+            });
+
+
+            modelBuilder.Entity<User>(entity =>
+            {
+                entity.Property(x => x.FullName)
+                    .HasMaxLength(100)
+                    .IsRequired();
+
+                entity.Property(x => x.Email)
+                    .HasMaxLength(255)
+                    .IsRequired();
+
+                entity.HasIndex(x => x.Email)
+                    .IsUnique();
+
+                entity.Property(x => x.PasswordHash)
+                    .HasMaxLength(255)
+                    .IsRequired();
+
+                entity.Property(x => x.Phone)
+                    .HasMaxLength(20)
+                    .IsRequired();
+
+                entity.Property(x => x.Role)
+                    .HasMaxLength(30)
+                    .IsRequired();
+            });
+
             modelBuilder.Entity<User>()
                 .HasOne(u => u.ProducerProfile)
                 .WithOne(p => p.User)

@@ -2,6 +2,7 @@
 using HomemadeFood.Api.Entities;
 using HomemadeFood.Api.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using HomemadeFood.Api.Constants;
 
 namespace HomemadeFood.Api.Repositories
 {
@@ -28,7 +29,8 @@ namespace HomemadeFood.Api.Repositories
         {
             return await _context.ProducerProfiles
                 .Include(x => x.User)
-                .Where(x => x.VerificationStatus == "Pending")
+                .Where(x => x.VerificationStatus ==
+    ProducerVerificationStatuses.Pending)
                 .OrderBy(x => x.CreatedAt)
                 .ToListAsync();
         }
@@ -46,7 +48,8 @@ namespace HomemadeFood.Api.Repositories
                 .FirstOrDefaultAsync(x =>
                     x.UserId == userId &&
                     x.IsApproved &&
-                    x.VerificationStatus == "Approved");
+                    x.VerificationStatus ==
+    ProducerVerificationStatuses.Approved);
         }
 
         public async Task SaveChangesAsync()

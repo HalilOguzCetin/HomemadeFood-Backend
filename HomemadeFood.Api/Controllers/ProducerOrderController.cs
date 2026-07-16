@@ -2,12 +2,13 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using HomemadeFood.Api.Constants;
 
 namespace HomemadeFood.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Roles = "Producer")]
+    [Authorize(Roles = UserRoles.Producer)]
     public class ProducerOrderController : ControllerBase
     {
         private readonly IProducerOrderService _producerOrderService;

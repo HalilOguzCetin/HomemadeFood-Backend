@@ -3,12 +3,13 @@ using HomemadeFood.Api.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using HomemadeFood.Api.Constants;
 
 namespace HomemadeFood.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Roles = "Producer")]
+    [Authorize(Roles = UserRoles.Producer)]
     public class FoodController : ControllerBase
     {
         private readonly IFoodService _foodService;

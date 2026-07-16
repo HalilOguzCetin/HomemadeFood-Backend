@@ -2,6 +2,7 @@
 using HomemadeFood.Api.DTOs.Auth;
 using HomemadeFood.Api.Entities;
 using HomemadeFood.Api.Interfaces;
+using HomemadeFood.Api.Constants;
 
 
 namespace HomemadeFood.Api.Services
@@ -17,52 +18,69 @@ namespace HomemadeFood.Api.Services
             _jwtTokenGenerator = jwtTokenGenerator;
         }
 
-        public async Task<bool> RegisterAsync(RegisterRequest request)
+        public async Task<bool> RegisterAsync(
+     RegisterRequest request)
         {
-            // Email daha önce kayıtlı mı?
-            var existingUser = await _userRepository.GetByEmailAsync(request.Email);
+            var normalizedEmail =
+                request.Email.Trim().ToLowerInvariant();
+
+            var existingUser =
+                await _userRepository
+                    .GetByEmailAsync(normalizedEmail);
 
             if (existingUser != null)
             {
                 return false;
             }
 
-            // Yeni kullanıcı oluştur
             var user = new User
             {
-                FullName = request.FullName,
-                Email = request.Email,
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
-                Phone = request.Phone,
-                Role = "Customer",
+                FullName = request.FullName.Trim(),
+                Email = normalizedEmail,
+
+                PasswordHash =
+                    BCrypt.Net.BCrypt.HashPassword(
+                        request.Password),
+
+                Phone = request.Phone.Trim(),
+                Role = UserRoles.Customer,
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow
             };
 
-            // Veritabanına ekle
             await _userRepository.AddAsync(user);
             await _userRepository.SaveChangesAsync();
 
             return true;
         }
 
-        public async Task<LoginResponse?> LoginAsync(LoginRequest request)
+        public async Task<LoginResponse?> LoginAsync(
+     LoginRequest request)
         {
-            var user = await _userRepository.GetByEmailAsync(request.Email);
+            var normalizedEmail =
+                request.Email.Trim().ToLowerInvariant();
 
-            if (user == null)
+            var user =
+                await _userRepository
+                    .GetByEmailAsync(normalizedEmail);
+
+            if (user == null || !user.IsActive)
             {
                 return null;
             }
 
-            var isPasswordValid = BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash);
+            var isPasswordValid =
+                BCrypt.Net.BCrypt.Verify(
+                    request.Password,
+                    user.PasswordHash);
 
             if (!isPasswordValid)
             {
                 return null;
             }
 
-            var token = _jwtTokenGenerator.GenerateToken(user);
+            var token =
+                _jwtTokenGenerator.GenerateToken(user);
 
             return new LoginResponse
             {
