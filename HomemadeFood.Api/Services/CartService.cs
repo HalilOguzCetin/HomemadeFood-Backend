@@ -2,6 +2,7 @@
 using HomemadeFood.Api.Interfaces;
 using CartEntity = HomemadeFood.Api.Entities.Cart;
 using CartItemEntity = HomemadeFood.Api.Entities.CartItem;
+using HomemadeFood.Api.Constants;
 
 namespace HomemadeFood.Api.Services
 {
@@ -234,8 +235,8 @@ namespace HomemadeFood.Api.Services
                         x.Food.Category.IsActive &&
                         cart.ProducerProfile.IsApproved &&
                         cart.ProducerProfile.IsAvailable &&
-                        cart.ProducerProfile
-                            .VerificationStatus == "Approved";
+                        cart.ProducerProfile.VerificationStatus ==
+    ProducerVerificationStatuses.Approved;
 
                     return new CartItemResponse
                     {

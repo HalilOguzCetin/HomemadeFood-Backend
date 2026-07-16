@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using HomemadeFood.Api.DTOs.Auth;
 using Microsoft.AspNetCore.Authorization;
+using HomemadeFood.Api.Constants;
 
 namespace HomemadeFood.Api.Controllers
 {
@@ -52,21 +53,21 @@ namespace HomemadeFood.Api.Controllers
         {
             return Ok("Bu endpoint'e sadece giriş yapan kullanıcı erişebilir.");
         }
-        [Authorize(Roles = "Customer")]
+        [Authorize(Roles = UserRoles.Customer)]
         [HttpGet("customer-area")]
         public IActionResult CustomerArea()
         {
             return Ok("Customer yetkisi doğrulandı.");
         }
 
-        [Authorize(Roles = "Producer")]
+        [Authorize(Roles = UserRoles.Producer)]
         [HttpGet("producer-area")]
         public IActionResult ProducerArea()
         {
             return Ok("Producer yetkisi doğrulandı.");
         }
 
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = UserRoles.Admin)]
         [HttpGet("admin-area")]
         public IActionResult AdminArea()
         {

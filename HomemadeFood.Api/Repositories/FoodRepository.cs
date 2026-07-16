@@ -2,6 +2,7 @@
 using HomemadeFood.Api.Entities;
 using HomemadeFood.Api.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using HomemadeFood.Api.Constants;
 
 namespace HomemadeFood.Api.Repositories
 {
@@ -31,7 +32,8 @@ namespace HomemadeFood.Api.Repositories
                     x.Category.IsActive &&
                     x.ProducerProfile.IsApproved &&
                     x.ProducerProfile.IsAvailable &&
-                    x.ProducerProfile.VerificationStatus == "Approved")
+                    x.ProducerProfile.VerificationStatus ==
+    ProducerVerificationStatuses.Approved)
                 .AsQueryable();
 
             if (categoryId.HasValue)
@@ -69,7 +71,8 @@ namespace HomemadeFood.Api.Repositories
                     x.Category.IsActive &&
                     x.ProducerProfile.IsApproved &&
                     x.ProducerProfile.IsAvailable &&
-                    x.ProducerProfile.VerificationStatus == "Approved");
+                   x.ProducerProfile.VerificationStatus ==
+    ProducerVerificationStatuses.Approved);
         }
 
         public async Task<List<Food>>

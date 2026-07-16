@@ -14,10 +14,15 @@ namespace HomemadeFood.Api.Repositories
             _context = context;
         }
 
-        public async Task<User?> GetByEmailAsync(string email)
+        public async Task<User?> GetByEmailAsync(
+    string email)
         {
+            var normalizedEmail =
+                email.Trim().ToLowerInvariant();
+
             return await _context.Users
-                .FirstOrDefaultAsync(x => x.Email == email);
+                .FirstOrDefaultAsync(x =>
+                    x.Email == normalizedEmail);
         }
 
         public async Task AddAsync(User user)

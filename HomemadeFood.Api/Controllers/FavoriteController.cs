@@ -2,12 +2,13 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using HomemadeFood.Api.Constants;
 
 namespace HomemadeFood.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Roles = "Customer")]
+    [Authorize(Roles = UserRoles.Customer)]
     public class FavoriteController : ControllerBase
     {
         private readonly IFavoriteService _favoriteService;

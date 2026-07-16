@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using HomemadeFood.Api.Constants;
 
 namespace HomemadeFood.Api.DTOs.Order
 {
@@ -12,11 +13,11 @@ namespace HomemadeFood.Api.DTOs.Order
 
         [Required(ErrorMessage = "Ödeme yöntemi zorunludur.")]
         [RegularExpression(
-            "^(CashOnDelivery|CardOnDelivery)$",
-            ErrorMessage =
-                "Ödeme yöntemi CashOnDelivery veya CardOnDelivery olmalıdır.")]
+    PaymentMethods.ValidationPattern,
+    ErrorMessage =
+        "Ödeme yöntemi CashOnDelivery veya CardOnDelivery olmalıdır.")]
         public string PaymentMethod { get; set; }
-            = "CashOnDelivery";
+    = PaymentMethods.CashOnDelivery;
 
         [MaxLength(
             500,

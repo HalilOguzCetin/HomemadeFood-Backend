@@ -2,6 +2,7 @@
 using HomemadeFood.Api.DTOs.ProducerOrder;
 using HomemadeFood.Api.Interfaces;
 using OrderEntity = HomemadeFood.Api.Entities.Order;
+using HomemadeFood.Api.Constants;
 
 namespace HomemadeFood.Api.Services
 {
@@ -9,13 +10,18 @@ namespace HomemadeFood.Api.Services
     {
         private readonly IOrderRepository _orderRepository;
         private readonly IProducerRepository _producerRepository;
+        private readonly IProducerCapacityService
+    _producerCapacityService;
 
         public ProducerOrderService(
-            IOrderRepository orderRepository,
-            IProducerRepository producerRepository)
+    IOrderRepository orderRepository,
+    IProducerRepository producerRepository,
+    IProducerCapacityService producerCapacityService)
         {
             _orderRepository = orderRepository;
             _producerRepository = producerRepository;
+            _producerCapacityService =
+                producerCapacityService;
         }
 
         public async Task<List<ProducerOrderResponse>>
@@ -47,8 +53,8 @@ namespace HomemadeFood.Api.Services
             return ChangeStatusAsync(
                 producerUserId,
                 orderId,
-                expectedStatus: "Pending",
-                newStatus: "Accepted",
+                expectedStatus: OrderStatuses.Pending,
+                newStatus: OrderStatuses.Accepted,
                 restoreCapacity: false);
         }
 
@@ -59,8 +65,8 @@ namespace HomemadeFood.Api.Services
             return ChangeStatusAsync(
                 producerUserId,
                 orderId,
-                expectedStatus: "Pending",
-                newStatus: "Rejected",
+                expectedStatus: OrderStatuses.Pending,
+newStatus: OrderStatuses.Rejected,
                 restoreCapacity: true);
         }
 
@@ -71,8 +77,8 @@ namespace HomemadeFood.Api.Services
             return ChangeStatusAsync(
                 producerUserId,
                 orderId,
-                expectedStatus: "Accepted",
-                newStatus: "Preparing",
+               expectedStatus: OrderStatuses.Accepted,
+newStatus: OrderStatuses.Preparing,
                 restoreCapacity: false);
         }
 
@@ -83,8 +89,8 @@ namespace HomemadeFood.Api.Services
             return ChangeStatusAsync(
                 producerUserId,
                 orderId,
-                expectedStatus: "Preparing",
-                newStatus: "Ready",
+                expectedStatus: OrderStatuses.Preparing,
+newStatus: OrderStatuses.Ready,
                 restoreCapacity: false);
         }
 
@@ -96,8 +102,8 @@ namespace HomemadeFood.Api.Services
             return ChangeStatusAsync(
                 producerUserId,
                 orderId,
-                expectedStatus: "Ready",
-                newStatus: "OutForDelivery",
+                expectedStatus: OrderStatuses.Ready,
+newStatus: OrderStatuses.OutForDelivery,
                 restoreCapacity: false);
         }
 
@@ -108,8 +114,8 @@ namespace HomemadeFood.Api.Services
             return ChangeStatusAsync(
                 producerUserId,
                 orderId,
-                expectedStatus: "OutForDelivery",
-                newStatus: "Delivered",
+                expectedStatus: OrderStatuses.OutForDelivery,
+newStatus: OrderStatuses.Delivered,
                 restoreCapacity: false);
         }
 
@@ -155,13 +161,10 @@ namespace HomemadeFood.Api.Services
                 var totalQuantity =
                     order.OrderItems.Sum(x => x.Quantity);
 
-                // Reddedilen siparişte daha önce düşürülen
-                // kapasite üreticiye geri verilir.
-                order.ProducerProfile.RemainingCapacity =
-                    Math.Min(
-                        order.ProducerProfile.DailyCapacity,
-                        order.ProducerProfile.RemainingCapacity
-                        + totalQuantity);
+                _producerCapacityService.RestoreForOrder(
+                    order.ProducerProfile,
+                    order.CreatedAt,
+                    totalQuantity);
             }
 
             order.Status = newStatus;

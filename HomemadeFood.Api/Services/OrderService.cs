@@ -2,6 +2,7 @@
 using HomemadeFood.Api.Interfaces;
 using OrderEntity = HomemadeFood.Api.Entities.Order;
 using OrderItemEntity = HomemadeFood.Api.Entities.OrderItem;
+using HomemadeFood.Api.Constants;
 
 namespace HomemadeFood.Api.Services
 {
@@ -10,15 +11,20 @@ namespace HomemadeFood.Api.Services
         private readonly IOrderRepository _orderRepository;
         private readonly ICartRepository _cartRepository;
         private readonly IAddressRepository _addressRepository;
+        private readonly IProducerCapacityService
+            _producerCapacityService;
 
         public OrderService(
-            IOrderRepository orderRepository,
-            ICartRepository cartRepository,
-            IAddressRepository addressRepository)
+    IOrderRepository orderRepository,
+    ICartRepository cartRepository,
+    IAddressRepository addressRepository,
+    IProducerCapacityService producerCapacityService)
         {
             _orderRepository = orderRepository;
             _cartRepository = cartRepository;
             _addressRepository = addressRepository;
+            _producerCapacityService =
+                producerCapacityService;
         }
 
         public async Task<OrderResponse?> CreateOrderAsync(
@@ -53,7 +59,8 @@ namespace HomemadeFood.Api.Services
             // Üretici hâlâ onaylı ve sipariş almaya açık mı?
             if (!producer.IsApproved ||
                 !producer.IsAvailable ||
-                producer.VerificationStatus != "Approved")
+                producer.VerificationStatus !=
+    ProducerVerificationStatuses.Approved)
             {
                 return null;
             }
@@ -76,7 +83,12 @@ namespace HomemadeFood.Api.Services
                 cart.Items.Sum(item => item.Quantity);
 
             // Üreticinin kalan günlük kapasitesi yeterli mi?
-            if (producer.RemainingCapacity < totalQuantity)
+            var capacityReserved =
+     _producerCapacityService.TryReserve(
+         producer,
+         totalQuantity);
+
+            if (!capacityReserved)
             {
                 return null;
             }
@@ -117,7 +129,7 @@ namespace HomemadeFood.Api.Services
 
                 TotalPrice = totalPrice,
 
-                Status = "Pending",
+                Status = OrderStatuses.Pending,
 
                 SuitabilityScore = 0,
 
@@ -152,7 +164,7 @@ namespace HomemadeFood.Api.Services
             }
 
             // Sipariş miktarı kadar kapasite azalt.
-            producer.RemainingCapacity -= totalQuantity;
+            
 
             // Siparişi ekle.
             await _orderRepository.AddAsync(order);
@@ -224,9 +236,9 @@ namespace HomemadeFood.Api.Services
             // Müşteri yalnızca üretici henüz kabul etmeden
             // Pending durumundaki siparişi iptal edebilir.
             if (!string.Equals(
-                    order.Status,
-                    "Pending",
-                    StringComparison.Ordinal))
+         order.Status,
+         OrderStatuses.Pending,
+         StringComparison.Ordinal))
             {
                 return null;
             }
@@ -235,13 +247,12 @@ namespace HomemadeFood.Api.Services
                 order.OrderItems.Sum(x => x.Quantity);
 
             // Sipariş oluşturulurken azaltılan kapasiteyi geri ver.
-            order.ProducerProfile.RemainingCapacity =
-                Math.Min(
-                    order.ProducerProfile.DailyCapacity,
-                    order.ProducerProfile.RemainingCapacity
-                    + totalQuantity);
+            _producerCapacityService.RestoreForOrder(
+    order.ProducerProfile,
+    order.CreatedAt,
+    totalQuantity);
 
-            order.Status = "Cancelled";
+            order.Status = OrderStatuses.Cancelled;
             order.StatusUpdatedAt = DateTime.UtcNow;
 
             await _orderRepository.SaveChangesAsync();

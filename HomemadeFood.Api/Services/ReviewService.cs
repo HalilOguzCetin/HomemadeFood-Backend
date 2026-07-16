@@ -1,6 +1,7 @@
 ﻿using HomemadeFood.Api.DTOs.Review;
 using HomemadeFood.Api.Interfaces;
 using ReviewEntity = HomemadeFood.Api.Entities.Review;
+using HomemadeFood.Api.Constants;
 
 namespace HomemadeFood.Api.Services
 {
@@ -36,9 +37,9 @@ namespace HomemadeFood.Api.Services
             // Yalnızca teslim edilmiş siparişler
             // değerlendirilebilir.
             if (!string.Equals(
-                    order.Status,
-                    "Delivered",
-                    StringComparison.Ordinal))
+         order.Status,
+         OrderStatuses.Delivered,
+         StringComparison.Ordinal))
             {
                 return null;
             }

@@ -7,6 +7,9 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using HomemadeFood.Api.Helpers;
+using System.Security.Claims;
+using HomemadeFood.Api.Infrastructure;
+using Microsoft.AspNetCore.Mvc;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -34,28 +37,122 @@ builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<IProducerOrderService,ProducerOrderService>();
 builder.Services.AddScoped<IReviewRepository, ReviewRepository>();
+builder.Services.AddSingleton<IAppClock, AppClock>();
+builder.Services.AddScoped<
+    IProducerCapacityService,
+    ProducerCapacityService>();
 builder.Services.AddScoped<
     IReviewService,
     ReviewService>();
+builder.Services.AddProblemDetails();
+
+builder.Services.AddExceptionHandler<
+    GlobalExceptionHandler>();
 var jwtSettings = builder.Configuration.GetSection("Jwt");
 var key = Encoding.UTF8.GetBytes(jwtSettings["Key"]!);
+builder.Services.Configure<ApiBehaviorOptions>(
+    options =>
+    {
+        options.InvalidModelStateResponseFactory =
+            context =>
+            {
+                var details =
+                    new ValidationProblemDetails(
+                        context.ModelState)
+                    {
+                        Status =
+                            StatusCodes.Status400BadRequest,
 
+                        Title =
+                            "Gönderilen bilgiler doðrulanamadý.",
+
+                        Instance =
+                            context.HttpContext.Request.Path
+                    };
+
+                details.Extensions["code"] =
+                    "VALIDATION_ERROR";
+
+                details.Extensions["traceId"] =
+                    context.HttpContext.TraceIdentifier;
+
+                return new BadRequestObjectResult(details);
+            };
+    });
 builder.Services.AddAuthentication(options =>
 {
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultAuthenticateScheme =
+        JwtBearerDefaults.AuthenticationScheme;
+
+    options.DefaultChallengeScheme =
+        JwtBearerDefaults.AuthenticationScheme;
 })
 .AddJwtBearer(options =>
 {
-    options.TokenValidationParameters = new TokenValidationParameters
+    options.TokenValidationParameters =
+        new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+
+            ValidIssuer = jwtSettings["Issuer"],
+            ValidAudience = jwtSettings["Audience"],
+
+            IssuerSigningKey =
+                new SymmetricSecurityKey(key)
+        };
+
+    // Token geçerli göründükten sonra kullanýcýnýn
+    // güncel durumunu veritabanýndan kontrol eder.
+    options.Events = new JwtBearerEvents
     {
-        ValidateIssuer = true,
-        ValidateAudience = true,
-        ValidateLifetime = true,
-        ValidateIssuerSigningKey = true,
-        ValidIssuer = jwtSettings["Issuer"],
-        ValidAudience = jwtSettings["Audience"],
-        IssuerSigningKey = new SymmetricSecurityKey(key)
+        OnTokenValidated = async context =>
+        {
+            var userIdValue =
+                context.Principal?.FindFirstValue(
+                    ClaimTypes.NameIdentifier);
+
+            if (!int.TryParse(userIdValue, out var userId))
+            {
+                context.Fail(
+                    "Token içindeki kullanýcý bilgisi geçersiz.");
+
+                return;
+            }
+
+            var dbContext =
+                context.HttpContext.RequestServices
+                    .GetRequiredService<AppDbContext>();
+
+            var user = await dbContext.Users
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Id == userId);
+
+            if (user == null || !user.IsActive)
+            {
+                context.Fail(
+                    "Kullanýcý bulunamadý veya hesap pasif.");
+
+                return;
+            }
+
+            var tokenRole =
+                context.Principal?.FindFirstValue(
+                    ClaimTypes.Role);
+
+            if (!string.Equals(
+                    tokenRole,
+                    user.Role,
+                    StringComparison.Ordinal))
+            {
+                context.Fail(
+                    "Kullanýcýnýn rolü deðiþti. Yeniden giriþ yapýlmalýdýr.");
+
+                return;
+            }
+        }
     };
 });
 
@@ -96,12 +193,13 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 var app = builder.Build();
-
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+app.UseExceptionHandler();
 
 app.UseHttpsRedirection();
 app.UseAuthentication();
