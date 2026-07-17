@@ -25,6 +25,7 @@ namespace HomemadeFood.Api.Entities
 
         public int RemainingCapacity { get; set; }
         public DateOnly? CapacityDate { get; set; }
+        public int CapacityVersion { get; set; } = 1;
 
         public bool IsAvailable { get; set; } = true;
 

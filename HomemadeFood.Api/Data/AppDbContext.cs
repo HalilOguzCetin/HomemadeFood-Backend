@@ -143,6 +143,9 @@ namespace HomemadeFood.Api.Data
                     .HasPrecision(3, 2);
                 entity.Property(x => x.CapacityDate)
                     .HasColumnType("date");
+                entity.Property(x => x.CapacityVersion)
+    .IsConcurrencyToken()
+    .HasDefaultValue(1);
 
 
             });

@@ -3,6 +3,7 @@ using HomemadeFood.Api.Interfaces;
 using OrderEntity = HomemadeFood.Api.Entities.Order;
 using OrderItemEntity = HomemadeFood.Api.Entities.OrderItem;
 using HomemadeFood.Api.Constants;
+using Microsoft.EntityFrameworkCore;
 
 namespace HomemadeFood.Api.Services
 {
@@ -13,18 +14,21 @@ namespace HomemadeFood.Api.Services
         private readonly IAddressRepository _addressRepository;
         private readonly IProducerCapacityService
             _producerCapacityService;
+        private readonly IAppClock _appClock;
 
         public OrderService(
-    IOrderRepository orderRepository,
-    ICartRepository cartRepository,
-    IAddressRepository addressRepository,
-    IProducerCapacityService producerCapacityService)
+     IOrderRepository orderRepository,
+     ICartRepository cartRepository,
+     IAddressRepository addressRepository,
+     IProducerCapacityService producerCapacityService,
+     IAppClock appClock)
         {
             _orderRepository = orderRepository;
             _cartRepository = cartRepository;
             _addressRepository = addressRepository;
             _producerCapacityService =
                 producerCapacityService;
+            _appClock = appClock;
         }
 
         public async Task<OrderResponse?> CreateOrderAsync(
@@ -99,7 +103,7 @@ namespace HomemadeFood.Api.Services
                 cart.Items.Sum(item =>
                     item.Food.Price * item.Quantity);
 
-            var now = DateTime.UtcNow;
+            var now = _appClock.UtcNow;
 
             var order = new OrderEntity
             {
@@ -163,7 +167,7 @@ namespace HomemadeFood.Api.Services
                     });
             }
 
-            // Sipariş miktarı kadar kapasite azalt.
+           
             
 
             // Siparişi ekle.
@@ -183,9 +187,25 @@ namespace HomemadeFood.Api.Services
              *
              * işlemlerini birlikte kaydeder.
              */
-            await _orderRepository.SaveChangesAsync();
+            try
+            {
+                await _orderRepository.SaveChangesAsync();
 
-            return MapToResponse(order);
+                return MapToResponse(order);
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                /*
+                 * Başka bir sipariş aynı üreticinin kapasitesini
+                 * bizden önce değiştirdi.
+                 *
+                 * SaveChanges başarısız olduğu için:
+                 * - Sipariş kaydedilmez
+                 * - Kapasite azaltılmaz
+                 * - Sepet silinmez
+                 */
+                return null;
+            }
         }
 
         public async Task<List<OrderResponse>>
@@ -253,11 +273,25 @@ namespace HomemadeFood.Api.Services
     totalQuantity);
 
             order.Status = OrderStatuses.Cancelled;
-            order.StatusUpdatedAt = DateTime.UtcNow;
+            order.StatusUpdatedAt = _appClock.UtcNow;
 
-            await _orderRepository.SaveChangesAsync();
+           
 
-            return MapToResponse(order);
+            try
+            {
+                await _orderRepository.SaveChangesAsync();
+
+                return MapToResponse(order);
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                /*
+                 * Kapasite başka bir işlem tarafından
+                 * aynı anda değiştirildiyse iptal işlemi
+                 * güvenli şekilde başarısız olur.
+                 */
+                return null;
+            }
         }
 
         private static OrderResponse MapToResponse(
