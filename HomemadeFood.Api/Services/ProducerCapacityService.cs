@@ -28,6 +28,10 @@ namespace HomemadeFood.Api.Services
                 producerProfile.DailyCapacity;
 
             producerProfile.CapacityDate = today;
+
+            // Kapasite bilgileri değiştiği için
+            // concurrency sürümünü artır.
+            producerProfile.CapacityVersion++;
         }
 
         public bool TryReserve(
@@ -49,6 +53,9 @@ namespace HomemadeFood.Api.Services
 
             producerProfile.RemainingCapacity -= quantity;
 
+            // Sipariş için kapasite azaltıldı.
+            producerProfile.CapacityVersion++;
+
             return true;
         }
 
@@ -62,32 +69,36 @@ namespace HomemadeFood.Api.Services
                 return;
             }
 
-            /*
-             * Önce üreticinin kapasitesini bugüne geçirir.
-             * CapacityDate eskiyse RemainingCapacity,
-             * DailyCapacity değerine sıfırlanır.
-             */
             EnsureCurrentDay(producerProfile);
 
             var orderTurkeyDate =
                 _appClock.GetTurkeyDate(
                     orderCreatedAt);
 
-            /*
-             * Eski güne ait sipariş bugün iptal veya
-             * reddedilirse bugünkü kapasite artırılmaz.
-             */
+            // Eski güne ait sipariş bugünün
+            // kapasitesini artırmamalı.
             if (orderTurkeyDate !=
                 _appClock.TurkeyToday)
             {
                 return;
             }
 
+            var oldRemainingCapacity =
+                producerProfile.RemainingCapacity;
+
             producerProfile.RemainingCapacity =
                 Math.Min(
                     producerProfile.DailyCapacity,
                     producerProfile.RemainingCapacity
                     + quantity);
+
+            // Gerçekten kapasite değiştiyse
+            // concurrency sürümünü artır.
+            if (producerProfile.RemainingCapacity !=
+                oldRemainingCapacity)
+            {
+                producerProfile.CapacityVersion++;
+            }
         }
     }
 }
