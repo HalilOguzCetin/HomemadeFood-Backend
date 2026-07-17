@@ -9,14 +9,17 @@ namespace HomemadeFood.Api.Repositories
     {
         private readonly AppDbContext _context;
 
-        public ReviewRepository(AppDbContext context)
+        public ReviewRepository(
+            AppDbContext context)
         {
             _context = context;
         }
 
-        public async Task AddAsync(Review review)
+        public async Task AddAsync(
+            Review review)
         {
-            await _context.Reviews.AddAsync(review);
+            await _context.Reviews
+                .AddAsync(review);
         }
 
         public async Task<Review?> GetByOrderIdAsync(
@@ -29,14 +32,17 @@ namespace HomemadeFood.Api.Repositories
         }
 
         public async Task<List<Review>>
-            GetByCustomerIdAsync(int customerId)
+            GetByCustomerIdAsync(
+                int customerId)
         {
             return await _context.Reviews
                 .AsNoTracking()
                 .Include(x => x.Customer)
                 .Include(x => x.ProducerProfile)
-                .Where(x => x.CustomerId == customerId)
-                .OrderByDescending(x => x.CreatedAt)
+                .Where(x =>
+                    x.CustomerId == customerId)
+                .OrderByDescending(x =>
+                    x.CreatedAt)
                 .ToListAsync();
         }
 
@@ -51,7 +57,8 @@ namespace HomemadeFood.Api.Repositories
                 .Where(x =>
                     x.ProducerProfileId ==
                     producerProfileId)
-                .OrderByDescending(x => x.CreatedAt)
+                .OrderByDescending(x =>
+                    x.CreatedAt)
                 .ToListAsync();
         }
 
@@ -68,23 +75,36 @@ namespace HomemadeFood.Api.Repositories
                     x.CustomerId == customerId);
         }
 
-        public async Task<decimal> GetAverageRatingAsync(
-     int producerProfileId)
+        public async Task<
+            (decimal TotalRating, int ReviewCount)>
+            GetRatingSummaryAsync(
+                int producerProfileId)
         {
-            var ratings = _context.Reviews
+            var query = _context.Reviews
+                .AsNoTracking()
                 .Where(x =>
-                    x.ProducerProfileId == producerProfileId);
+                    x.ProducerProfileId ==
+                    producerProfileId);
 
-            if (!await ratings.AnyAsync())
+            var reviewCount =
+                await query.CountAsync();
+
+            if (reviewCount == 0)
             {
-                return 0m;
+                return (0m, 0);
             }
 
-            return await ratings.AverageAsync(
-                x => (decimal)x.Rating);
+            var totalRating =
+                await query.SumAsync(x =>
+                    (decimal)x.Rating);
+
+            return (
+                totalRating,
+                reviewCount);
         }
 
-        public void Remove(Review review)
+        public void Remove(
+            Review review)
         {
             _context.Reviews.Remove(review);
         }

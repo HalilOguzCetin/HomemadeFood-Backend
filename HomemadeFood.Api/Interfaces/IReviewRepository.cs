@@ -6,7 +6,8 @@ namespace HomemadeFood.Api.Interfaces
     {
         Task AddAsync(Review review);
 
-        Task<Review?> GetByOrderIdAsync(int orderId);
+        Task<Review?> GetByOrderIdAsync(
+            int orderId);
 
         Task<List<Review>> GetByCustomerIdAsync(
             int customerId);
@@ -18,8 +19,9 @@ namespace HomemadeFood.Api.Interfaces
             int reviewId,
             int customerId);
 
-        Task<decimal> GetAverageRatingAsync(
-    int producerProfileId);
+        Task<(decimal TotalRating, int ReviewCount)>
+            GetRatingSummaryAsync(
+                int producerProfileId);
 
         void Remove(Review review);
 
