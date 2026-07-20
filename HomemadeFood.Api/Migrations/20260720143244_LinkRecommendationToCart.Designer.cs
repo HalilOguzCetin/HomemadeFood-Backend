@@ -3,6 +3,7 @@ using System;
 using HomemadeFood.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace HomemadeFood.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260720143244_LinkRecommendationToCart")]
+    partial class LinkRecommendationToCart
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -260,9 +263,6 @@ namespace HomemadeFood.Api.Migrations
                     b.Property<int>("ProducerProfileId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("RecommendationSearchId")
-                        .HasColumnType("int");
-
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(30)
@@ -284,9 +284,6 @@ namespace HomemadeFood.Api.Migrations
                     b.HasIndex("CustomerId");
 
                     b.HasIndex("ProducerProfileId");
-
-                    b.HasIndex("RecommendationSearchId")
-                        .IsUnique();
 
                     b.ToTable("Orders");
                 });
@@ -709,16 +706,9 @@ namespace HomemadeFood.Api.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("HomemadeFood.Api.Entities.RecommendationSearch", "RecommendationSearch")
-                        .WithMany()
-                        .HasForeignKey("RecommendationSearchId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.Navigation("Customer");
 
                     b.Navigation("ProducerProfile");
-
-                    b.Navigation("RecommendationSearch");
                 });
 
             modelBuilder.Entity("HomemadeFood.Api.Entities.OrderItem", b =>

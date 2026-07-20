@@ -181,6 +181,11 @@ newStatus: OrderStatuses.Delivered,
             return new ProducerOrderResponse
             {
                 OrderId = order.Id,
+                RecommendationSearchId =
+    order.RecommendationSearchId,
+
+                SuitabilityScore =
+    order.SuitabilityScore,
 
                 CustomerFullName =
                     order.Customer.FullName,

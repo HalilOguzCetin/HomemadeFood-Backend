@@ -41,6 +41,12 @@ builder.Services.AddScoped<IProducerOrderService,ProducerOrderService>();
 builder.Services.AddScoped<IReviewRepository, ReviewRepository>();
 builder.Services.AddSingleton<IAppClock, AppClock>();
 builder.Services.AddScoped<
+    IRecommendationAnalyticsService,
+    RecommendationAnalyticsService>();
+builder.Services.AddScoped<
+    IProducerRecommendationService,
+    ProducerRecommendationService>();
+builder.Services.AddScoped<
     IProducerCapacityService,
     ProducerCapacityService>();
 builder.Services.AddScoped<

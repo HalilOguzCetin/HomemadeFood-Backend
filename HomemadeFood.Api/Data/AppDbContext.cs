@@ -28,6 +28,13 @@ namespace HomemadeFood.Api.Data
         public DbSet<Cart> Carts { get; set; }
 
         public DbSet<CartItem> CartItems { get; set; }
+        public DbSet<RecommendationSearch>
+    RecommendationSearches
+        { get; set; }
+
+        public DbSet<RecommendationCandidate>
+            RecommendationCandidates
+        { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -51,6 +58,30 @@ namespace HomemadeFood.Api.Data
                 entity.Property(x => x.TotalPrice)
                     .HasPrecision(18, 2);
             });
+            modelBuilder.Entity<Cart>()
+    .HasOne(c => c.User)
+    .WithOne(u => u.Cart)
+    .HasForeignKey<Cart>(c => c.UserId)
+    .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Cart>()
+                .HasOne(c => c.ProducerProfile)
+                .WithMany(p => p.Carts)
+                .HasForeignKey(c => c.ProducerProfileId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<Cart>(
+    entity =>
+    {
+        entity.HasOne(x =>
+                x.RecommendationSearch)
+            .WithMany()
+            .HasForeignKey(x =>
+                x.RecommendationSearchId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        entity.HasIndex(x =>
+            x.RecommendationSearchId);
+    });
 
             modelBuilder.Entity<Order>(entity =>
             {
@@ -80,6 +111,20 @@ namespace HomemadeFood.Api.Data
                 entity.Property(x => x.SuitabilityScore)
                     .HasPrecision(5, 2);
             });
+            modelBuilder.Entity<Order>(
+    entity =>
+    {
+        entity.HasOne(x =>
+                x.RecommendationSearch)
+            .WithMany()
+            .HasForeignKey(x =>
+                x.RecommendationSearchId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        entity.HasIndex(x =>
+                x.RecommendationSearchId)
+            .IsUnique();
+    });
 
             modelBuilder.Entity<Address>(entity =>
             {
@@ -271,6 +316,43 @@ namespace HomemadeFood.Api.Data
                 .WithMany(f => f.OrderItems)
                 .HasForeignKey(oi => oi.FoodId)
                 .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<RecommendationSearch>(
+    entity =>
+    {
+        entity.Property(x => x.SearchText)
+            .HasMaxLength(100)
+            .IsRequired();
+
+        entity.HasMany(x => x.Candidates)
+            .WithOne(x => x.RecommendationSearch)
+            .HasForeignKey(
+                x => x.RecommendationSearchId)
+            .OnDelete(DeleteBehavior.Cascade);
+    });
+
+            modelBuilder.Entity<RecommendationCandidate>(
+                entity =>
+                {
+                    entity.Property(x => x.FoodName)
+                        .HasMaxLength(100)
+                        .IsRequired();
+
+                    entity.Property(x => x.BusinessName)
+                        .HasMaxLength(150)
+                        .IsRequired();
+
+                    entity.Property(x => x.Price)
+                        .HasPrecision(18, 2);
+
+                    entity.Property(x => x.AverageRating)
+                        .HasPrecision(3, 2);
+
+                    entity.HasIndex(x => new
+                    {
+                        x.RecommendationSearchId,
+                        x.Rank
+                    });
+                });
         }
     }
 }

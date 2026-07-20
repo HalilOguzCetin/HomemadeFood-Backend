@@ -10,7 +10,16 @@
 
         public int ProducerProfileId { get; set; }
 
-        public ProducerProfile ProducerProfile { get; set; } = null!;
+        public ProducerProfile ProducerProfile { get; set; }
+            = null!;
+
+        // Sepet bir öneri sonucundan oluşturulduysa
+        // ilgili arama kaydının ID değeri tutulur.
+        public int? RecommendationSearchId { get; set; }
+
+        public RecommendationSearch?
+            RecommendationSearch
+        { get; set; }
 
         public DateTime CreatedAt { get; set; }
             = DateTime.UtcNow;
