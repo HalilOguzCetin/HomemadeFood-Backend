@@ -9,6 +9,10 @@
         public string BusinessName { get; set; }
             = string.Empty;
 
+        public int? RecommendationSearchId { get; set; }
+
+        public decimal SuitabilityScore { get; set; }
+
         public string DeliveryAddressTitle { get; set; }
             = string.Empty;
 

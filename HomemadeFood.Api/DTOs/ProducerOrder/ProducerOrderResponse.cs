@@ -6,6 +6,10 @@ namespace HomemadeFood.Api.DTOs.ProducerOrder
     {
         public int OrderId { get; set; }
 
+        public int? RecommendationSearchId { get; set; }
+
+        public decimal SuitabilityScore { get; set; }
+
         public string CustomerFullName { get; set; }
             = string.Empty;
 

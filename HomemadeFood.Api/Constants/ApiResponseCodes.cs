@@ -94,5 +94,13 @@
     "INTERNAL_SERVER_ERROR";
         public const string ValidationError =
     "VALIDATION_ERROR";
+        public const string RecommendationSearchNotFound =
+    "RECOMMENDATION_SEARCH_NOT_FOUND";
+
+        public const string RecommendationCandidateNotFound =
+            "RECOMMENDATION_CANDIDATE_NOT_FOUND";
+
+        public const string RecommendationAlreadySelected =
+            "RECOMMENDATION_ALREADY_SELECTED";
     }
 }

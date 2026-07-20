@@ -1,8 +1,10 @@
-﻿using HomemadeFood.Api.DTOs.Cart;
+﻿using HomemadeFood.Api.Constants;
+using HomemadeFood.Api.Data;
+using HomemadeFood.Api.DTOs.Cart;
 using HomemadeFood.Api.Interfaces;
+using Microsoft.EntityFrameworkCore;
 using CartEntity = HomemadeFood.Api.Entities.Cart;
 using CartItemEntity = HomemadeFood.Api.Entities.CartItem;
-using HomemadeFood.Api.Constants;
 
 namespace HomemadeFood.Api.Services
 {
@@ -10,13 +12,16 @@ namespace HomemadeFood.Api.Services
     {
         private readonly ICartRepository _cartRepository;
         private readonly IFoodRepository _foodRepository;
+        private readonly AppDbContext _dbContext;
 
         public CartService(
             ICartRepository cartRepository,
-            IFoodRepository foodRepository)
+            IFoodRepository foodRepository,
+            AppDbContext dbContext)
         {
             _cartRepository = cartRepository;
             _foodRepository = foodRepository;
+            _dbContext = dbContext;
         }
 
         public async Task<CartResponse> GetCartAsync(
@@ -45,6 +50,25 @@ namespace HomemadeFood.Api.Services
                 return null;
             }
 
+            // Ürün öneri ekranından geliyorsa;
+            // aramanın müşteriye ait olduğu,
+            // yemeğin gerçekten seçildiği ve
+            // üreticinin eşleştiği kontrol edilir.
+            if (request.RecommendationSearchId.HasValue)
+            {
+                var isValidRecommendation =
+                    await IsValidRecommendationAsync(
+                        userId,
+                        food.Id,
+                        food.ProducerProfileId,
+                        request.RecommendationSearchId.Value);
+
+                if (!isValidRecommendation)
+                {
+                    return null;
+                }
+            }
+
             var cart =
                 await _cartRepository
                     .GetTrackedByUserIdWithItemsAsync(
@@ -59,16 +83,20 @@ namespace HomemadeFood.Api.Services
                     ProducerProfileId =
                         food.ProducerProfileId,
 
+                    RecommendationSearchId =
+                        request.RecommendationSearchId,
+
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
                 };
 
-                cart.Items.Add(new CartItemEntity
-                {
-                    FoodId = food.Id,
-                    Quantity = request.Quantity,
-                    CreatedAt = DateTime.UtcNow
-                });
+                cart.Items.Add(
+                    new CartItemEntity
+                    {
+                        FoodId = food.Id,
+                        Quantity = request.Quantity,
+                        CreatedAt = DateTime.UtcNow
+                    });
 
                 await _cartRepository.AddAsync(cart);
             }
@@ -82,9 +110,25 @@ namespace HomemadeFood.Api.Services
                     return null;
                 }
 
+                if (request.RecommendationSearchId.HasValue)
+                {
+                    // Sepet daha önce başka bir öneri
+                    // aramasına bağlandıysa yeni ve farklı
+                    // bir öneri bağlantısı kabul edilmez.
+                    if (cart.RecommendationSearchId.HasValue &&
+                        cart.RecommendationSearchId.Value !=
+                        request.RecommendationSearchId.Value)
+                    {
+                        return null;
+                    }
+
+                    cart.RecommendationSearchId =
+                        request.RecommendationSearchId;
+                }
+
                 var existingItem =
-                    cart.Items.FirstOrDefault(x =>
-                        x.FoodId == food.Id);
+                    cart.Items.FirstOrDefault(
+                        x => x.FoodId == food.Id);
 
                 if (existingItem != null)
                 {
@@ -102,12 +146,13 @@ namespace HomemadeFood.Api.Services
                 }
                 else
                 {
-                    cart.Items.Add(new CartItemEntity
-                    {
-                        FoodId = food.Id,
-                        Quantity = request.Quantity,
-                        CreatedAt = DateTime.UtcNow
-                    });
+                    cart.Items.Add(
+                        new CartItemEntity
+                        {
+                            FoodId = food.Id,
+                            Quantity = request.Quantity,
+                            CreatedAt = DateTime.UtcNow
+                        });
                 }
 
                 cart.UpdatedAt = DateTime.UtcNow;
@@ -134,8 +179,8 @@ namespace HomemadeFood.Api.Services
             }
 
             var cartItem =
-                cart.Items.FirstOrDefault(x =>
-                    x.Id == cartItemId);
+                cart.Items.FirstOrDefault(
+                    x => x.Id == cartItemId);
 
             if (cartItem == null)
             {
@@ -165,8 +210,8 @@ namespace HomemadeFood.Api.Services
             }
 
             var cartItem =
-                cart.Items.FirstOrDefault(x =>
-                    x.Id == cartItemId);
+                cart.Items.FirstOrDefault(
+                    x => x.Id == cartItemId);
 
             if (cartItem == null)
             {
@@ -210,6 +255,32 @@ namespace HomemadeFood.Api.Services
             return true;
         }
 
+        private async Task<bool>
+            IsValidRecommendationAsync(
+                int customerUserId,
+                int foodId,
+                int producerProfileId,
+                int recommendationSearchId)
+        {
+            return await _dbContext
+                .RecommendationSearches
+                .AsNoTracking()
+                .AnyAsync(
+                    x =>
+                        x.Id == recommendationSearchId &&
+
+                        x.CustomerUserId ==
+                        customerUserId &&
+
+                        x.SelectedFoodId ==
+                        foodId &&
+
+                        x.SelectedProducerProfileId ==
+                        producerProfileId &&
+
+                        x.SelectedAtUtc.HasValue);
+        }
+
         private static CartResponse MapToResponse(
             CartEntity? cart)
         {
@@ -220,40 +291,54 @@ namespace HomemadeFood.Api.Services
                     CartId = null,
                     ProducerProfileId = null,
                     BusinessName = string.Empty,
-                    Items = new List<CartItemResponse>(),
+                    Items =
+                        new List<CartItemResponse>(),
                     TotalQuantity = 0,
                     TotalPrice = 0
                 };
             }
 
-            var items = cart.Items
-                .OrderByDescending(x => x.CreatedAt)
-                .Select(x =>
-                {
-                    var isAvailable =
-                        x.Food.IsAvailable &&
-                        x.Food.Category.IsActive &&
-                        cart.ProducerProfile.IsApproved &&
-                        cart.ProducerProfile.IsAvailable &&
-                        cart.ProducerProfile.VerificationStatus ==
-    ProducerVerificationStatuses.Approved;
+            var items =
+                cart.Items
+                    .OrderByDescending(
+                        x => x.CreatedAt)
+                    .Select(
+                        x =>
+                        {
+                            var isAvailable =
+                                x.Food.IsAvailable &&
 
-                    return new CartItemResponse
-                    {
-                        CartItemId = x.Id,
-                        FoodId = x.FoodId,
-                        FoodName = x.Food.Name,
-                        ImageUrl = x.Food.ImageUrl,
-                        UnitPrice = x.Food.Price,
-                        Quantity = x.Quantity,
+                                x.Food.Category.IsActive &&
 
-                        LineTotal =
-                            x.Food.Price * x.Quantity,
+                                cart.ProducerProfile
+                                    .IsApproved &&
 
-                        IsAvailable = isAvailable
-                    };
-                })
-                .ToList();
+                                cart.ProducerProfile
+                                    .IsAvailable &&
+
+                                cart.ProducerProfile
+                                    .VerificationStatus ==
+                                ProducerVerificationStatuses
+                                    .Approved;
+
+                            return new CartItemResponse
+                            {
+                                CartItemId = x.Id,
+                                FoodId = x.FoodId,
+                                FoodName = x.Food.Name,
+                                ImageUrl = x.Food.ImageUrl,
+                                UnitPrice = x.Food.Price,
+                                Quantity = x.Quantity,
+
+                                LineTotal =
+                                    x.Food.Price *
+                                    x.Quantity,
+
+                                IsAvailable =
+                                    isAvailable
+                            };
+                        })
+                    .ToList();
 
             return new CartResponse
             {

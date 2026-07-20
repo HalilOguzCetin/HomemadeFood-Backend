@@ -1,4 +1,5 @@
 ﻿using HomemadeFood.Api.Constants;
+
 namespace HomemadeFood.Api.Entities
 {
     public class Order
@@ -11,11 +12,17 @@ namespace HomemadeFood.Api.Entities
 
         public int ProducerProfileId { get; set; }
 
-        public ProducerProfile ProducerProfile { get; set; } = null!;
+        public ProducerProfile ProducerProfile { get; set; }
+            = null!;
 
-        // Adres bilgileri sipariş anında kopyalanır.
-        // Kullanıcı kayıtlı adresini daha sonra değiştirse bile
-        // eski siparişin adresi değişmez.
+        // Sipariş bir öneri sonucundan oluşturulduysa
+        // ilgili öneri aramasının ID değeri tutulur.
+        public int? RecommendationSearchId { get; set; }
+
+        public RecommendationSearch?
+            RecommendationSearch
+        { get; set; }
+
         public string DeliveryAddressTitle { get; set; }
             = string.Empty;
 
@@ -26,17 +33,19 @@ namespace HomemadeFood.Api.Entities
 
         public double DeliveryLongitude { get; set; }
 
-        // CashOnDelivery veya CardOnDelivery
         public string PaymentMethod { get; set; }
-    = PaymentMethods.CashOnDelivery;
+            = PaymentMethods.CashOnDelivery;
+
         public string CustomerNote { get; set; }
             = string.Empty;
 
         public decimal TotalPrice { get; set; }
 
         public string Status { get; set; }
-     = OrderStatuses.Pending;
+            = OrderStatuses.Pending;
 
+        // Öneri motorunun sipariş oluşturulduğu
+        // andaki toplam puanı.
         public decimal SuitabilityScore { get; set; }
 
         public DateTime CreatedAt { get; set; }
@@ -47,6 +56,7 @@ namespace HomemadeFood.Api.Entities
 
         public ICollection<OrderItem> OrderItems { get; set; }
             = new List<OrderItem>();
+
         public Review? Review { get; set; }
     }
 }
