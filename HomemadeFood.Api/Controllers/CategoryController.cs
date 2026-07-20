@@ -1,4 +1,5 @@
-﻿using HomemadeFood.Api.Interfaces;
+﻿using HomemadeFood.Api.DTOs.Common;
+using HomemadeFood.Api.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -8,7 +9,8 @@ namespace HomemadeFood.Api.Controllers
     [Route("api/[controller]")]
     public class CategoryController : ControllerBase
     {
-        private readonly ICategoryService _categoryService;
+        private readonly ICategoryService
+            _categoryService;
 
         public CategoryController(
             ICategoryService categoryService)
@@ -24,7 +26,10 @@ namespace HomemadeFood.Api.Controllers
                 await _categoryService
                     .GetActiveCategoriesAsync();
 
-            return Ok(categories);
+            return Ok(
+                ApiResponse<object>.Succeed(
+                    categories,
+                    "Kategoriler başarıyla getirildi."));
         }
     }
 }

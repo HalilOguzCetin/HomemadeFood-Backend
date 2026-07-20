@@ -1,9 +1,10 @@
-﻿using HomemadeFood.Api.DTOs.Address;
+﻿using HomemadeFood.Api.Constants;
+using HomemadeFood.Api.DTOs.Address;
+using HomemadeFood.Api.DTOs.Common;
 using HomemadeFood.Api.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
-using HomemadeFood.Api.Constants;
 
 namespace HomemadeFood.Api.Controllers
 {
@@ -14,7 +15,8 @@ namespace HomemadeFood.Api.Controllers
     {
         private readonly IAddressService _addressService;
 
-        public AddressController(IAddressService addressService)
+        public AddressController(
+            IAddressService addressService)
         {
             _addressService = addressService;
         }
@@ -26,7 +28,9 @@ namespace HomemadeFood.Api.Controllers
             if (!TryGetUserId(out var userId))
             {
                 return Unauthorized(
-                    "Kullanıcı bilgisi alınamadı.");
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.Unauthorized,
+                        "Kullanıcı bilgisi alınamadı."));
             }
 
             var address =
@@ -36,7 +40,10 @@ namespace HomemadeFood.Api.Controllers
 
             return StatusCode(
                 StatusCodes.Status201Created,
-                address);
+                ApiResponse<object>.Succeed(
+                    address,
+                    "Adres başarıyla oluşturuldu.",
+                    ApiResponseCodes.Created));
         }
 
         [HttpGet]
@@ -45,14 +52,19 @@ namespace HomemadeFood.Api.Controllers
             if (!TryGetUserId(out var userId))
             {
                 return Unauthorized(
-                    "Kullanıcı bilgisi alınamadı.");
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.Unauthorized,
+                        "Kullanıcı bilgisi alınamadı."));
             }
 
             var addresses =
                 await _addressService.GetMyAddressesAsync(
                     userId);
 
-            return Ok(addresses);
+            return Ok(
+                ApiResponse<object>.Succeed(
+                    addresses,
+                    "Adresler başarıyla getirildi."));
         }
 
         [HttpPut("{id:int}")]
@@ -63,13 +75,17 @@ namespace HomemadeFood.Api.Controllers
             if (id <= 0)
             {
                 return BadRequest(
-                    "Adres ID değeri sıfırdan büyük olmalıdır.");
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.BadRequest,
+                        "Adres ID değeri sıfırdan büyük olmalıdır."));
             }
 
             if (!TryGetUserId(out var userId))
             {
                 return Unauthorized(
-                    "Kullanıcı bilgisi alınamadı.");
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.Unauthorized,
+                        "Kullanıcı bilgisi alınamadı."));
             }
 
             var address =
@@ -81,25 +97,35 @@ namespace HomemadeFood.Api.Controllers
             if (address == null)
             {
                 return NotFound(
-                    "Adres bulunamadı veya bu adres size ait değil.");
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.NotFound,
+                        "Adres bulunamadı veya bu adres size ait değil."));
             }
 
-            return Ok(address);
+            return Ok(
+                ApiResponse<object>.Succeed(
+                    address,
+                    "Adres başarıyla güncellendi."));
         }
 
         [HttpDelete("{id:int}")]
-        public async Task<IActionResult> DeleteAddress(int id)
+        public async Task<IActionResult> DeleteAddress(
+            int id)
         {
             if (id <= 0)
             {
                 return BadRequest(
-                    "Adres ID değeri sıfırdan büyük olmalıdır.");
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.BadRequest,
+                        "Adres ID değeri sıfırdan büyük olmalıdır."));
             }
 
             if (!TryGetUserId(out var userId))
             {
                 return Unauthorized(
-                    "Kullanıcı bilgisi alınamadı.");
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.Unauthorized,
+                        "Kullanıcı bilgisi alınamadı."));
             }
 
             var result =
@@ -110,13 +136,22 @@ namespace HomemadeFood.Api.Controllers
             if (!result)
             {
                 return NotFound(
-                    "Adres bulunamadı veya bu adres size ait değil.");
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.NotFound,
+                        "Adres bulunamadı veya bu adres size ait değil."));
             }
 
-            return Ok("Adres başarıyla silindi.");
+            return Ok(
+                ApiResponse<object>.Succeed(
+                    new
+                    {
+                        addressId = id
+                    },
+                    "Adres başarıyla silindi."));
         }
 
-        private bool TryGetUserId(out int userId)
+        private bool TryGetUserId(
+            out int userId)
         {
             var userIdValue =
                 User.FindFirstValue(

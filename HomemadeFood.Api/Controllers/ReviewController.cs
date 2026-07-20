@@ -1,9 +1,10 @@
-﻿using HomemadeFood.Api.DTOs.Review;
+﻿using HomemadeFood.Api.Constants;
+using HomemadeFood.Api.DTOs.Common;
+using HomemadeFood.Api.DTOs.Review;
 using HomemadeFood.Api.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
-using HomemadeFood.Api.Constants;
 
 namespace HomemadeFood.Api.Controllers
 {
@@ -14,7 +15,8 @@ namespace HomemadeFood.Api.Controllers
     {
         private readonly IReviewService _reviewService;
 
-        public ReviewController(IReviewService reviewService)
+        public ReviewController(
+            IReviewService reviewService)
         {
             _reviewService = reviewService;
         }
@@ -26,7 +28,9 @@ namespace HomemadeFood.Api.Controllers
             if (!TryGetUserId(out var customerId))
             {
                 return Unauthorized(
-                    "Kullanıcı bilgisi alınamadı.");
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.Unauthorized,
+                        "Kullanıcı bilgisi alınamadı."));
             }
 
             var review =
@@ -37,12 +41,18 @@ namespace HomemadeFood.Api.Controllers
             if (review == null)
             {
                 return BadRequest(
-                    "Değerlendirme oluşturulamadı. Sipariş bulunamamış, size ait olmayabilir, teslim edilmemiş olabilir veya daha önce değerlendirilmiş olabilir.");
+                    ApiResponse<ReviewResponse>.Fail(
+                        ApiResponseCodes
+                            .ReviewCreationFailed,
+                        "Değerlendirme oluşturulamadı. Sipariş bulunamamış, size ait olmayabilir, teslim edilmemiş veya daha önce değerlendirilmiş olabilir."));
             }
 
             return StatusCode(
                 StatusCodes.Status201Created,
-                review);
+                ApiResponse<ReviewResponse>.Succeed(
+                    review,
+                    "Değerlendirme başarıyla oluşturuldu.",
+                    ApiResponseCodes.Created));
         }
 
         [HttpGet("my-reviews")]
@@ -51,25 +61,33 @@ namespace HomemadeFood.Api.Controllers
             if (!TryGetUserId(out var customerId))
             {
                 return Unauthorized(
-                    "Kullanıcı bilgisi alınamadı.");
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.Unauthorized,
+                        "Kullanıcı bilgisi alınamadı."));
             }
 
             var reviews =
                 await _reviewService
                     .GetMyReviewsAsync(customerId);
 
-            return Ok(reviews);
+            return Ok(
+                ApiResponse<List<ReviewResponse>>.Succeed(
+                    reviews,
+                    "Değerlendirmeler başarıyla getirildi."));
         }
 
         [AllowAnonymous]
         [HttpGet("producer/{producerProfileId:int}")]
-        public async Task<IActionResult> GetProducerReviews(
-            int producerProfileId)
+        public async Task<IActionResult>
+            GetProducerReviews(
+                int producerProfileId)
         {
             if (producerProfileId <= 0)
             {
                 return BadRequest(
-                    "Üretici profil ID değeri sıfırdan büyük olmalıdır.");
+                    ApiResponse<List<ReviewResponse>>.Fail(
+                        ApiResponseCodes.BadRequest,
+                        "Üretici profil ID değeri sıfırdan büyük olmalıdır."));
             }
 
             var reviews =
@@ -77,22 +95,30 @@ namespace HomemadeFood.Api.Controllers
                     .GetProducerReviewsAsync(
                         producerProfileId);
 
-            return Ok(reviews);
+            return Ok(
+                ApiResponse<List<ReviewResponse>>.Succeed(
+                    reviews,
+                    "Üretici değerlendirmeleri başarıyla getirildi."));
         }
 
         [HttpDelete("{id:int}")]
-        public async Task<IActionResult> DeleteReview(int id)
+        public async Task<IActionResult> DeleteReview(
+            int id)
         {
             if (id <= 0)
             {
                 return BadRequest(
-                    "Değerlendirme ID değeri sıfırdan büyük olmalıdır.");
+    ApiResponse<object>.Fail(
+        ApiResponseCodes.BadRequest,
+        "Değerlendirme ID değeri sıfırdan büyük olmalıdır."));
             }
 
             if (!TryGetUserId(out var customerId))
             {
                 return Unauthorized(
-                    "Kullanıcı bilgisi alınamadı.");
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.Unauthorized,
+                        "Kullanıcı bilgisi alınamadı."));
             }
 
             var result =
@@ -103,14 +129,22 @@ namespace HomemadeFood.Api.Controllers
             if (!result)
             {
                 return NotFound(
-                    "Değerlendirme bulunamadı veya bu değerlendirme size ait değil.");
+     ApiResponse<object>.Fail(
+         ApiResponseCodes.ReviewDeletionFailed,
+         "Değerlendirme bulunamadı veya bu değerlendirme size ait değil."));
             }
 
             return Ok(
-                "Değerlendirme başarıyla silindi.");
+    ApiResponse<object>.Succeed(
+        new
+        {
+            reviewId = id
+        },
+        "Değerlendirme başarıyla silindi."));
         }
 
-        private bool TryGetUserId(out int userId)
+        private bool TryGetUserId(
+            out int userId)
         {
             var userIdValue =
                 User.FindFirstValue(

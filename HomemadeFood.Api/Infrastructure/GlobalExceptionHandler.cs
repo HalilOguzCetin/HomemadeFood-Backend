@@ -1,11 +1,13 @@
-﻿using Microsoft.AspNetCore.Diagnostics;
-using Microsoft.AspNetCore.Mvc;
+﻿using HomemadeFood.Api.Constants;
+using HomemadeFood.Api.DTOs.Common;
+using Microsoft.AspNetCore.Diagnostics;
 
 namespace HomemadeFood.Api.Infrastructure
 {
     public sealed class GlobalExceptionHandler : IExceptionHandler
     {
-        private readonly ILogger<GlobalExceptionHandler> _logger;
+        private readonly ILogger<GlobalExceptionHandler>
+            _logger;
 
         public GlobalExceptionHandler(
             ILogger<GlobalExceptionHandler> logger)
@@ -23,32 +25,38 @@ namespace HomemadeFood.Api.Infrastructure
                 "Beklenmeyen hata oluştu. TraceId: {TraceId}",
                 httpContext.TraceIdentifier);
 
-            var problemDetails = new ProblemDetails
+            if (httpContext.Response.HasStarted)
             {
-                Status =
-                    StatusCodes.Status500InternalServerError,
-
-                Title =
-                    "Beklenmeyen bir sunucu hatası oluştu.",
-
-                Detail =
-                    "İşlem şu anda tamamlanamadı. Lütfen daha sonra tekrar deneyin.",
-
-                Instance =
-                    httpContext.Request.Path
-            };
-
-            problemDetails.Extensions["code"] =
-                "INTERNAL_SERVER_ERROR";
-
-            problemDetails.Extensions["traceId"] =
-                httpContext.TraceIdentifier;
+                return false;
+            }
 
             httpContext.Response.StatusCode =
                 StatusCodes.Status500InternalServerError;
 
+            httpContext.Response.ContentType =
+                "application/json; charset=utf-8";
+
+            var response =
+                new ApiResponse<object>
+                {
+                    Success = false,
+
+                    Code =
+                        ApiResponseCodes
+                            .InternalServerError,
+
+                    Message =
+                        "Beklenmeyen bir sunucu hatası oluştu.",
+
+                    Data = new
+                    {
+                        traceId =
+                            httpContext.TraceIdentifier
+                    }
+                };
+
             await httpContext.Response.WriteAsJsonAsync(
-                problemDetails,
+                response,
                 cancellationToken);
 
             return true;
