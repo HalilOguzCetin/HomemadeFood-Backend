@@ -1,8 +1,9 @@
-﻿using HomemadeFood.Api.Interfaces;
+﻿using HomemadeFood.Api.Constants;
+using HomemadeFood.Api.DTOs.Common;
+using HomemadeFood.Api.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
-using HomemadeFood.Api.Constants;
 
 namespace HomemadeFood.Api.Controllers
 {
@@ -25,14 +26,19 @@ namespace HomemadeFood.Api.Controllers
             if (!TryGetUserId(out var userId))
             {
                 return Unauthorized(
-                    "Kullanıcı bilgisi alınamadı.");
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.Unauthorized,
+                        "Kullanıcı bilgisi alınamadı."));
             }
 
             var favorites =
                 await _favoriteService
                     .GetMyFavoritesAsync(userId);
 
-            return Ok(favorites);
+            return Ok(
+                ApiResponse<object>.Succeed(
+                    favorites,
+                    "Favoriler başarıyla getirildi."));
         }
 
         [HttpPost("{foodId:int}")]
@@ -42,13 +48,17 @@ namespace HomemadeFood.Api.Controllers
             if (foodId <= 0)
             {
                 return BadRequest(
-                    "Yemek ID değeri sıfırdan büyük olmalıdır.");
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.BadRequest,
+                        "Yemek ID değeri sıfırdan büyük olmalıdır."));
             }
 
             if (!TryGetUserId(out var userId))
             {
                 return Unauthorized(
-                    "Kullanıcı bilgisi alınamadı.");
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.Unauthorized,
+                        "Kullanıcı bilgisi alınamadı."));
             }
 
             var result =
@@ -60,12 +70,21 @@ namespace HomemadeFood.Api.Controllers
             if (!result)
             {
                 return BadRequest(
-                    "Yemek bulunamadı, satışta değil veya zaten favorilerinizde.");
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes
+                            .FavoriteAdditionFailed,
+                        "Yemek bulunamadı, satışta değil veya zaten favorilerinizde."));
             }
 
             return StatusCode(
                 StatusCodes.Status201Created,
-                "Yemek favorilere eklendi.");
+                ApiResponse<object>.Succeed(
+                    new
+                    {
+                        foodId
+                    },
+                    "Yemek favorilere başarıyla eklendi.",
+                    ApiResponseCodes.Created));
         }
 
         [HttpDelete("{foodId:int}")]
@@ -75,13 +94,17 @@ namespace HomemadeFood.Api.Controllers
             if (foodId <= 0)
             {
                 return BadRequest(
-                    "Yemek ID değeri sıfırdan büyük olmalıdır.");
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.BadRequest,
+                        "Yemek ID değeri sıfırdan büyük olmalıdır."));
             }
 
             if (!TryGetUserId(out var userId))
             {
                 return Unauthorized(
-                    "Kullanıcı bilgisi alınamadı.");
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.Unauthorized,
+                        "Kullanıcı bilgisi alınamadı."));
             }
 
             var result =
@@ -93,14 +116,23 @@ namespace HomemadeFood.Api.Controllers
             if (!result)
             {
                 return NotFound(
-                    "Yemek favorilerinizde bulunamadı.");
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes
+                            .FavoriteRemovalFailed,
+                        "Yemek favorilerinizde bulunamadı."));
             }
 
             return Ok(
-                "Yemek favorilerden çıkarıldı.");
+                ApiResponse<object>.Succeed(
+                    new
+                    {
+                        foodId
+                    },
+                    "Yemek favorilerden başarıyla çıkarıldı."));
         }
 
-        private bool TryGetUserId(out int userId)
+        private bool TryGetUserId(
+            out int userId)
         {
             var userIdValue =
                 User.FindFirstValue(

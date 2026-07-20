@@ -1,8 +1,9 @@
-﻿using HomemadeFood.Api.Interfaces;
+﻿using HomemadeFood.Api.Constants;
+using HomemadeFood.Api.DTOs.Common;
+using HomemadeFood.Api.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
-using HomemadeFood.Api.Constants;
 
 namespace HomemadeFood.Api.Controllers
 {
@@ -13,41 +14,82 @@ namespace HomemadeFood.Api.Controllers
     {
         private readonly IAdminService _adminService;
 
-        public AdminController(IAdminService adminService)
+        public AdminController(
+            IAdminService adminService)
         {
             _adminService = adminService;
         }
 
         [HttpGet("producer-applications")]
-        public async Task<IActionResult> GetPendingApplications()
+        public async Task<IActionResult>
+            GetPendingApplications()
         {
             var applications =
-                await _adminService.GetPendingProducerApplicationsAsync();
+                await _adminService
+                    .GetPendingProducerApplicationsAsync();
 
-            return Ok(applications);
+            return Ok(
+                ApiResponse<object>.Succeed(
+                    applications,
+                    "Bekleyen üretici başvuruları başarıyla getirildi."));
         }
 
-        [HttpPost("producer-applications/{id}/approve")]
-        public async Task<IActionResult> ApproveProducer(int id)
+        [HttpPost(
+            "producer-applications/{id:int}/approve")]
+        public async Task<IActionResult> ApproveProducer(
+            int id)
         {
-            var adminIdValue =
-                User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-            if (!int.TryParse(adminIdValue, out var adminId))
+            if (id <= 0)
             {
-                return Unauthorized("Admin bilgisi alınamadı.");
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.BadRequest,
+                        "Üretici başvuru ID değeri sıfırdan büyük olmalıdır."));
+            }
+
+            if (!TryGetAdminId(out var adminId))
+            {
+                return Unauthorized(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.Unauthorized,
+                        "Admin bilgisi alınamadı."));
             }
 
             var result =
-                await _adminService.ApproveProducerAsync(id, adminId);
+                await _adminService
+                    .ApproveProducerAsync(
+                        id,
+                        adminId);
 
             if (!result)
             {
                 return BadRequest(
-                    "Başvuru bulunamadı veya daha önce işleme alınmış.");
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes
+                            .ProducerApprovalFailed,
+                        "Başvuru bulunamadı veya daha önce işleme alınmış olabilir."));
             }
 
-            return Ok("Üretici başvurusu onaylandı.");
+            return Ok(
+                ApiResponse<object>.Succeed(
+                    new
+                    {
+                        producerApplicationId = id,
+                        approved = true
+                    },
+                    "Üretici başvurusu başarıyla onaylandı."));
+        }
+
+        private bool TryGetAdminId(
+            out int adminId)
+        {
+            var adminIdValue =
+                User.FindFirstValue(
+                    ClaimTypes.NameIdentifier);
+
+            return int.TryParse(
+                adminIdValue,
+                out adminId);
         }
     }
 }

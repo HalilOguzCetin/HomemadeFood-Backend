@@ -1,9 +1,10 @@
-﻿using HomemadeFood.Api.DTOs.Cart;
+﻿using HomemadeFood.Api.Constants;
+using HomemadeFood.Api.DTOs.Cart;
+using HomemadeFood.Api.DTOs.Common;
 using HomemadeFood.Api.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
-using HomemadeFood.Api.Constants;
 
 namespace HomemadeFood.Api.Controllers
 {
@@ -14,7 +15,8 @@ namespace HomemadeFood.Api.Controllers
     {
         private readonly ICartService _cartService;
 
-        public CartController(ICartService cartService)
+        public CartController(
+            ICartService cartService)
         {
             _cartService = cartService;
         }
@@ -25,13 +27,18 @@ namespace HomemadeFood.Api.Controllers
             if (!TryGetUserId(out var userId))
             {
                 return Unauthorized(
-                    "Kullanıcı bilgisi alınamadı.");
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.Unauthorized,
+                        "Kullanıcı bilgisi alınamadı."));
             }
 
             var cart =
                 await _cartService.GetCartAsync(userId);
 
-            return Ok(cart);
+            return Ok(
+                ApiResponse<object>.Succeed(
+                    cart,
+                    "Sepet başarıyla getirildi."));
         }
 
         [HttpPost("items")]
@@ -41,7 +48,9 @@ namespace HomemadeFood.Api.Controllers
             if (!TryGetUserId(out var userId))
             {
                 return Unauthorized(
-                    "Kullanıcı bilgisi alınamadı.");
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.Unauthorized,
+                        "Kullanıcı bilgisi alınamadı."));
             }
 
             var cart =
@@ -52,12 +61,17 @@ namespace HomemadeFood.Api.Controllers
             if (cart == null)
             {
                 return BadRequest(
-                    "Yemek sepete eklenemedi. Yemek satışta olmayabilir, miktar sınırı aşılmış olabilir veya sepette farklı bir üreticinin yemeği bulunabilir.");
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.CartItemAdditionFailed,
+                        "Yemek sepete eklenemedi. Yemek satışta olmayabilir, miktar sınırı aşılmış olabilir veya sepette farklı bir üreticinin yemeği bulunabilir."));
             }
 
             return StatusCode(
                 StatusCodes.Status201Created,
-                cart);
+                ApiResponse<object>.Succeed(
+                    cart,
+                    "Yemek sepete başarıyla eklendi.",
+                    ApiResponseCodes.Created));
         }
 
         [HttpPut("items/{cartItemId:int}")]
@@ -68,13 +82,17 @@ namespace HomemadeFood.Api.Controllers
             if (cartItemId <= 0)
             {
                 return BadRequest(
-                    "Sepet ürünü ID değeri sıfırdan büyük olmalıdır.");
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.BadRequest,
+                        "Sepet ürünü ID değeri sıfırdan büyük olmalıdır."));
             }
 
             if (!TryGetUserId(out var userId))
             {
                 return Unauthorized(
-                    "Kullanıcı bilgisi alınamadı.");
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.Unauthorized,
+                        "Kullanıcı bilgisi alınamadı."));
             }
 
             var cart =
@@ -86,10 +104,15 @@ namespace HomemadeFood.Api.Controllers
             if (cart == null)
             {
                 return NotFound(
-                    "Sepet veya sepet ürünü bulunamadı.");
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.CartItemUpdateFailed,
+                        "Sepet veya sepet ürünü bulunamadı."));
             }
 
-            return Ok(cart);
+            return Ok(
+                ApiResponse<object>.Succeed(
+                    cart,
+                    "Sepet ürünü başarıyla güncellendi."));
         }
 
         [HttpDelete("items/{cartItemId:int}")]
@@ -99,13 +122,17 @@ namespace HomemadeFood.Api.Controllers
             if (cartItemId <= 0)
             {
                 return BadRequest(
-                    "Sepet ürünü ID değeri sıfırdan büyük olmalıdır.");
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.BadRequest,
+                        "Sepet ürünü ID değeri sıfırdan büyük olmalıdır."));
             }
 
             if (!TryGetUserId(out var userId))
             {
                 return Unauthorized(
-                    "Kullanıcı bilgisi alınamadı.");
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.Unauthorized,
+                        "Kullanıcı bilgisi alınamadı."));
             }
 
             var cart =
@@ -116,10 +143,15 @@ namespace HomemadeFood.Api.Controllers
             if (cart == null)
             {
                 return NotFound(
-                    "Sepet veya sepet ürünü bulunamadı.");
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.CartItemRemovalFailed,
+                        "Sepet veya sepet ürünü bulunamadı."));
             }
 
-            return Ok(cart);
+            return Ok(
+                ApiResponse<object>.Succeed(
+                    cart,
+                    "Yemek sepetten başarıyla çıkarıldı."));
         }
 
         [HttpDelete]
@@ -128,7 +160,9 @@ namespace HomemadeFood.Api.Controllers
             if (!TryGetUserId(out var userId))
             {
                 return Unauthorized(
-                    "Kullanıcı bilgisi alınamadı.");
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.Unauthorized,
+                        "Kullanıcı bilgisi alınamadı."));
             }
 
             var result =
@@ -137,13 +171,22 @@ namespace HomemadeFood.Api.Controllers
             if (!result)
             {
                 return NotFound(
-                    "Silinecek bir sepet bulunamadı.");
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.CartClearFailed,
+                        "Temizlenecek bir sepet bulunamadı."));
             }
 
-            return Ok("Sepet başarıyla temizlendi.");
+            return Ok(
+                ApiResponse<object>.Succeed(
+                    new
+                    {
+                        cleared = true
+                    },
+                    "Sepet başarıyla temizlendi."));
         }
 
-        private bool TryGetUserId(out int userId)
+        private bool TryGetUserId(
+            out int userId)
         {
             var userIdValue =
                 User.FindFirstValue(

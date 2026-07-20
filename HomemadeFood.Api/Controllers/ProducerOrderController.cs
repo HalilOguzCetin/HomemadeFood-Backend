@@ -1,8 +1,10 @@
-﻿using HomemadeFood.Api.Interfaces;
+﻿using HomemadeFood.Api.Constants;
+using HomemadeFood.Api.DTOs.Common;
+using HomemadeFood.Api.DTOs.ProducerOrder;
+using HomemadeFood.Api.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
-using HomemadeFood.Api.Constants;
 
 namespace HomemadeFood.Api.Controllers
 {
@@ -11,12 +13,14 @@ namespace HomemadeFood.Api.Controllers
     [Authorize(Roles = UserRoles.Producer)]
     public class ProducerOrderController : ControllerBase
     {
-        private readonly IProducerOrderService _producerOrderService;
+        private readonly IProducerOrderService
+            _producerOrderService;
 
         public ProducerOrderController(
             IProducerOrderService producerOrderService)
         {
-            _producerOrderService = producerOrderService;
+            _producerOrderService =
+                producerOrderService;
         }
 
         [HttpGet]
@@ -25,29 +29,35 @@ namespace HomemadeFood.Api.Controllers
             if (!TryGetUserId(out var producerUserId))
             {
                 return Unauthorized(
-                    "Üretici bilgisi alınamadı.");
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.Unauthorized,
+                        "Üretici bilgisi alınamadı."));
             }
 
             var orders =
                 await _producerOrderService
-                    .GetMyOrdersAsync(producerUserId);
+                    .GetMyOrdersAsync(
+                        producerUserId);
 
-            return Ok(orders);
+            return Ok(
+                ApiResponse<List<ProducerOrderResponse>>
+                    .Succeed(
+                        orders,
+                        "Üretici siparişleri başarıyla getirildi."));
         }
 
         [HttpPut("{id:int}/accept")]
-        public async Task<IActionResult> AcceptOrder(int id)
+        public async Task<IActionResult> AcceptOrder(
+            int id)
         {
             if (!IsValidOrderId(id))
             {
-                return BadRequest(
-                    "Sipariş ID değeri sıfırdan büyük olmalıdır.");
+                return InvalidOrderIdResponse();
             }
 
             if (!TryGetUserId(out var producerUserId))
             {
-                return Unauthorized(
-                    "Üretici bilgisi alınamadı.");
+                return UnauthorizedProducerResponse();
             }
 
             var order =
@@ -59,25 +69,30 @@ namespace HomemadeFood.Api.Controllers
             if (order == null)
             {
                 return BadRequest(
-                    "Sipariş kabul edilemedi. Sipariş bulunamamış, size ait olmayabilir veya durumu Pending olmayabilir.");
+                    ApiResponse<ProducerOrderResponse>.Fail(
+                        ApiResponseCodes
+                            .OrderAcceptanceFailed,
+                        "Sipariş kabul edilemedi. Sipariş bulunamamış, size ait olmayabilir veya durumu Pending olmayabilir."));
             }
 
-            return Ok(order);
+            return Ok(
+                ApiResponse<ProducerOrderResponse>.Succeed(
+                    order,
+                    "Sipariş başarıyla kabul edildi."));
         }
 
         [HttpPut("{id:int}/reject")]
-        public async Task<IActionResult> RejectOrder(int id)
+        public async Task<IActionResult> RejectOrder(
+            int id)
         {
             if (!IsValidOrderId(id))
             {
-                return BadRequest(
-                    "Sipariş ID değeri sıfırdan büyük olmalıdır.");
+                return InvalidOrderIdResponse();
             }
 
             if (!TryGetUserId(out var producerUserId))
             {
-                return Unauthorized(
-                    "Üretici bilgisi alınamadı.");
+                return UnauthorizedProducerResponse();
             }
 
             var order =
@@ -89,25 +104,30 @@ namespace HomemadeFood.Api.Controllers
             if (order == null)
             {
                 return BadRequest(
-                    "Sipariş reddedilemedi. Sipariş bulunamamış, size ait olmayabilir veya durumu Pending olmayabilir.");
+                    ApiResponse<ProducerOrderResponse>.Fail(
+                        ApiResponseCodes
+                            .OrderRejectionFailed,
+                        "Sipariş reddedilemedi. Sipariş bulunamamış, size ait olmayabilir veya durumu Pending olmayabilir."));
             }
 
-            return Ok(order);
+            return Ok(
+                ApiResponse<ProducerOrderResponse>.Succeed(
+                    order,
+                    "Sipariş başarıyla reddedildi."));
         }
 
         [HttpPut("{id:int}/start-preparing")]
-        public async Task<IActionResult> StartPreparing(int id)
+        public async Task<IActionResult> StartPreparing(
+            int id)
         {
             if (!IsValidOrderId(id))
             {
-                return BadRequest(
-                    "Sipariş ID değeri sıfırdan büyük olmalıdır.");
+                return InvalidOrderIdResponse();
             }
 
             if (!TryGetUserId(out var producerUserId))
             {
-                return Unauthorized(
-                    "Üretici bilgisi alınamadı.");
+                return UnauthorizedProducerResponse();
             }
 
             var order =
@@ -119,25 +139,30 @@ namespace HomemadeFood.Api.Controllers
             if (order == null)
             {
                 return BadRequest(
-                    "Hazırlama işlemi başlatılamadı. Siparişin durumu Accepted olmalıdır.");
+                    ApiResponse<ProducerOrderResponse>.Fail(
+                        ApiResponseCodes
+                            .OrderPreparationFailed,
+                        "Hazırlama işlemi başlatılamadı. Sipariş bulunamamış, size ait olmayabilir veya durumu Accepted olmayabilir."));
             }
 
-            return Ok(order);
+            return Ok(
+                ApiResponse<ProducerOrderResponse>.Succeed(
+                    order,
+                    "Sipariş hazırlanmaya başlandı."));
         }
 
         [HttpPut("{id:int}/ready")]
-        public async Task<IActionResult> MarkReady(int id)
+        public async Task<IActionResult> MarkReady(
+            int id)
         {
             if (!IsValidOrderId(id))
             {
-                return BadRequest(
-                    "Sipariş ID değeri sıfırdan büyük olmalıdır.");
+                return InvalidOrderIdResponse();
             }
 
             if (!TryGetUserId(out var producerUserId))
             {
-                return Unauthorized(
-                    "Üretici bilgisi alınamadı.");
+                return UnauthorizedProducerResponse();
             }
 
             var order =
@@ -149,25 +174,31 @@ namespace HomemadeFood.Api.Controllers
             if (order == null)
             {
                 return BadRequest(
-                    "Sipariş hazır durumuna getirilemedi. Siparişin durumu Preparing olmalıdır.");
+                    ApiResponse<ProducerOrderResponse>.Fail(
+                        ApiResponseCodes
+                            .OrderReadyFailed,
+                        "Sipariş hazır durumuna getirilemedi. Sipariş bulunamamış, size ait olmayabilir veya durumu Preparing olmayabilir."));
             }
 
-            return Ok(order);
+            return Ok(
+                ApiResponse<ProducerOrderResponse>.Succeed(
+                    order,
+                    "Sipariş hazır durumuna getirildi."));
         }
 
         [HttpPut("{id:int}/out-for-delivery")]
-        public async Task<IActionResult> MarkOutForDelivery(int id)
+        public async Task<IActionResult>
+            MarkOutForDelivery(
+                int id)
         {
             if (!IsValidOrderId(id))
             {
-                return BadRequest(
-                    "Sipariş ID değeri sıfırdan büyük olmalıdır.");
+                return InvalidOrderIdResponse();
             }
 
             if (!TryGetUserId(out var producerUserId))
             {
-                return Unauthorized(
-                    "Üretici bilgisi alınamadı.");
+                return UnauthorizedProducerResponse();
             }
 
             var order =
@@ -179,25 +210,30 @@ namespace HomemadeFood.Api.Controllers
             if (order == null)
             {
                 return BadRequest(
-                    "Sipariş teslimata çıkarılamadı. Siparişin durumu Ready olmalıdır.");
+                    ApiResponse<ProducerOrderResponse>.Fail(
+                        ApiResponseCodes
+                            .OrderDeliveryStartFailed,
+                        "Sipariş teslimata çıkarılamadı. Sipariş bulunamamış, size ait olmayabilir veya durumu Ready olmayabilir."));
             }
 
-            return Ok(order);
+            return Ok(
+                ApiResponse<ProducerOrderResponse>.Succeed(
+                    order,
+                    "Sipariş başarıyla teslimata çıkarıldı."));
         }
 
         [HttpPut("{id:int}/delivered")]
-        public async Task<IActionResult> MarkDelivered(int id)
+        public async Task<IActionResult> MarkDelivered(
+            int id)
         {
             if (!IsValidOrderId(id))
             {
-                return BadRequest(
-                    "Sipariş ID değeri sıfırdan büyük olmalıdır.");
+                return InvalidOrderIdResponse();
             }
 
             if (!TryGetUserId(out var producerUserId))
             {
-                return Unauthorized(
-                    "Üretici bilgisi alınamadı.");
+                return UnauthorizedProducerResponse();
             }
 
             var order =
@@ -209,13 +245,36 @@ namespace HomemadeFood.Api.Controllers
             if (order == null)
             {
                 return BadRequest(
-                    "Sipariş teslim edildi olarak işaretlenemedi. Siparişin durumu OutForDelivery olmalıdır.");
+                    ApiResponse<ProducerOrderResponse>.Fail(
+                        ApiResponseCodes
+                            .OrderDeliveryCompletionFailed,
+                        "Sipariş teslim edildi olarak işaretlenemedi. Sipariş bulunamamış, size ait olmayabilir veya durumu OutForDelivery olmayabilir."));
             }
 
-            return Ok(order);
+            return Ok(
+                ApiResponse<ProducerOrderResponse>.Succeed(
+                    order,
+                    "Sipariş başarıyla teslim edildi olarak işaretlendi."));
         }
 
-        private bool TryGetUserId(out int userId)
+        private IActionResult InvalidOrderIdResponse()
+        {
+            return BadRequest(
+                ApiResponse<object>.Fail(
+                    ApiResponseCodes.BadRequest,
+                    "Sipariş ID değeri sıfırdan büyük olmalıdır."));
+        }
+
+        private IActionResult UnauthorizedProducerResponse()
+        {
+            return Unauthorized(
+                ApiResponse<object>.Fail(
+                    ApiResponseCodes.Unauthorized,
+                    "Üretici bilgisi alınamadı."));
+        }
+
+        private bool TryGetUserId(
+            out int userId)
         {
             var userIdValue =
                 User.FindFirstValue(
@@ -226,7 +285,8 @@ namespace HomemadeFood.Api.Controllers
                 out userId);
         }
 
-        private static bool IsValidOrderId(int orderId)
+        private static bool IsValidOrderId(
+            int orderId)
         {
             return orderId > 0;
         }

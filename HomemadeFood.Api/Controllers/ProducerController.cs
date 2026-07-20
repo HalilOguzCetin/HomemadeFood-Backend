@@ -1,9 +1,10 @@
-﻿using HomemadeFood.Api.DTOs.Producer;
+﻿using HomemadeFood.Api.Constants;
+using HomemadeFood.Api.DTOs.Common;
+using HomemadeFood.Api.DTOs.Producer;
 using HomemadeFood.Api.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
-using HomemadeFood.Api.Constants;
 
 namespace HomemadeFood.Api.Controllers
 {
@@ -11,33 +12,67 @@ namespace HomemadeFood.Api.Controllers
     [Route("api/[controller]")]
     public class ProducerController : ControllerBase
     {
-        private readonly IProducerService _producerService;
+        private readonly IProducerService
+            _producerService;
 
-        public ProducerController(IProducerService producerService)
+        public ProducerController(
+            IProducerService producerService)
         {
             _producerService = producerService;
         }
 
         [Authorize(Roles = UserRoles.Customer)]
         [HttpPost("apply")]
-        public async Task<IActionResult> Apply(ProducerApplicationRequest request)
+        public async Task<IActionResult> Apply(
+            [FromBody] ProducerApplicationRequest request)
         {
-            var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-            if (!int.TryParse(userIdValue, out var userId))
+            if (!TryGetUserId(out var userId))
             {
-                return Unauthorized("Kullanıcı bilgisi alınamadı.");
+                return Unauthorized(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.Unauthorized,
+                        "Kullanıcı bilgisi alınamadı."));
             }
 
-            var result = await _producerService.ApplyAsync(userId, request);
+            var result =
+                await _producerService.ApplyAsync(
+                    userId,
+                    request);
 
             if (!result)
             {
                 return BadRequest(
-                    "Başvuru oluşturulamadı. Daha önce başvuru yapmış olabilirsiniz veya kapasite bilgisi geçersizdir.");
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes
+                            .ProducerApplicationFailed,
+                        "Başvuru oluşturulamadı. Daha önce başvuru yapmış olabilirsiniz veya kapasite bilgisi geçersizdir."));
             }
 
-            return Ok("Üretici başvurusu başarıyla oluşturuldu. Admin onayı bekleniyor.");
+            return StatusCode(
+                StatusCodes.Status201Created,
+                ApiResponse<object>.Succeed(
+                    new
+                    {
+                        applicationSubmitted = true,
+
+                        verificationStatus =
+                            ProducerVerificationStatuses
+                                .Pending
+                    },
+                    "Üretici başvurusu başarıyla oluşturuldu. Admin onayı bekleniyor.",
+                    ApiResponseCodes.Created));
+        }
+
+        private bool TryGetUserId(
+            out int userId)
+        {
+            var userIdValue =
+                User.FindFirstValue(
+                    ClaimTypes.NameIdentifier);
+
+            return int.TryParse(
+                userIdValue,
+                out userId);
         }
     }
 }

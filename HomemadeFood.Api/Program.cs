@@ -10,6 +10,8 @@ using HomemadeFood.Api.Helpers;
 using System.Security.Claims;
 using HomemadeFood.Api.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
+using HomemadeFood.Api.DTOs.Common;
+using HomemadeFood.Api.Constants;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -56,27 +58,45 @@ builder.Services.Configure<ApiBehaviorOptions>(
         options.InvalidModelStateResponseFactory =
             context =>
             {
-                var details =
-                    new ValidationProblemDetails(
-                        context.ModelState)
-                    {
-                        Status =
-                            StatusCodes.Status400BadRequest,
+                var errors =
+                    context.ModelState
+                        .Where(x =>
+                            x.Value != null &&
+                            x.Value.Errors.Count > 0)
+                        .ToDictionary(
+                            x => x.Key,
+                            x => x.Value!.Errors
+                                .Select(error =>
+                                    string.IsNullOrWhiteSpace(
+                                        error.ErrorMessage)
+                                        ? "Geçersiz deðer gönderildi."
+                                        : error.ErrorMessage)
+                                .ToArray());
 
-                        Title =
+                var response =
+                    new ApiResponse<object>
+                    {
+                        Success = false,
+
+                        Code =
+                            ApiResponseCodes
+                                .ValidationError,
+
+                        Message =
                             "Gönderilen bilgiler doðrulanamadý.",
 
-                        Instance =
-                            context.HttpContext.Request.Path
+                        Data = new
+                        {
+                            errors,
+
+                            traceId =
+                                context.HttpContext
+                                    .TraceIdentifier
+                        }
                     };
 
-                details.Extensions["code"] =
-                    "VALIDATION_ERROR";
-
-                details.Extensions["traceId"] =
-                    context.HttpContext.TraceIdentifier;
-
-                return new BadRequestObjectResult(details);
+                return new BadRequestObjectResult(
+                    response);
             };
     });
 builder.Services.AddAuthentication(options =>
@@ -114,7 +134,9 @@ builder.Services.AddAuthentication(options =>
                 context.Principal?.FindFirstValue(
                     ClaimTypes.NameIdentifier);
 
-            if (!int.TryParse(userIdValue, out var userId))
+            if (!int.TryParse(
+                    userIdValue,
+                    out var userId))
             {
                 context.Fail(
                     "Token içindeki kullanýcý bilgisi geçersiz.");
@@ -128,7 +150,8 @@ builder.Services.AddAuthentication(options =>
 
             var user = await dbContext.Users
                 .AsNoTracking()
-                .FirstOrDefaultAsync(x => x.Id == userId);
+                .FirstOrDefaultAsync(
+                    x => x.Id == userId);
 
             if (user == null || !user.IsActive)
             {
@@ -152,6 +175,53 @@ builder.Services.AddAuthentication(options =>
 
                 return;
             }
+        },
+
+        OnChallenge = async context =>
+        {
+            // ASP.NET Core'un varsayýlan 401 cevabýný engeller.
+            context.HandleResponse();
+
+            if (context.Response.HasStarted)
+            {
+                return;
+            }
+
+            context.Response.StatusCode =
+                StatusCodes.Status401Unauthorized;
+
+            context.Response.ContentType =
+                "application/json; charset=utf-8";
+
+            var response =
+                ApiResponse<object>.Fail(
+                    ApiResponseCodes.Unauthorized,
+                    "Bu iþlem için giriþ yapmanýz gerekiyor veya oturumunuz geçersiz.");
+
+            await context.Response
+                .WriteAsJsonAsync(response);
+        },
+
+        OnForbidden = async context =>
+        {
+            if (context.Response.HasStarted)
+            {
+                return;
+            }
+
+            context.Response.StatusCode =
+                StatusCodes.Status403Forbidden;
+
+            context.Response.ContentType =
+                "application/json; charset=utf-8";
+
+            var response =
+                ApiResponse<object>.Fail(
+                    ApiResponseCodes.Forbidden,
+                    "Bu iþlem için gerekli yetkiye sahip deðilsiniz.");
+
+            await context.Response
+                .WriteAsJsonAsync(response);
         }
     };
 });
@@ -207,5 +277,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+
 
 app.Run();
