@@ -426,6 +426,7 @@ namespace HomemadeFood.Api.Services
 
             order.StatusUpdatedAt =
                 _appClock.UtcNow;
+            order.StatusVersion++;
 
             try
             {

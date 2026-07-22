@@ -25,6 +25,14 @@ namespace HomemadeFood.Api.Repositories
             return await _context.ProducerProfiles
                 .AnyAsync(x => x.UserId == userId);
         }
+        public async Task<ProducerProfile?>
+    GetByUserIdAsync(
+        int userId)
+        {
+            return await _context.ProducerProfiles
+                .FirstOrDefaultAsync(
+                    x => x.UserId == userId);
+        }
         public async Task<List<ProducerProfile>> GetPendingApplicationsAsync()
         {
             return await _context.ProducerProfiles

@@ -289,11 +289,18 @@ namespace HomemadeFood.Api.Services
                 return new CartResponse
                 {
                     CartId = null,
+
                     ProducerProfileId = null,
+
+                    RecommendationSearchId = null,
+
                     BusinessName = string.Empty,
+
                     Items =
-                        new List<CartItemResponse>(),
+         new List<CartItemResponse>(),
+
                     TotalQuantity = 0,
+
                     TotalPrice = 0
                 };
             }
@@ -345,18 +352,21 @@ namespace HomemadeFood.Api.Services
                 CartId = cart.Id,
 
                 ProducerProfileId =
-                    cart.ProducerProfileId,
+         cart.ProducerProfileId,
+
+                RecommendationSearchId =
+         cart.RecommendationSearchId,
 
                 BusinessName =
-                    cart.ProducerProfile.BusinessName,
+         cart.ProducerProfile.BusinessName,
 
                 Items = items,
 
                 TotalQuantity =
-                    items.Sum(x => x.Quantity),
+         items.Sum(x => x.Quantity),
 
                 TotalPrice =
-                    items.Sum(x => x.LineTotal)
+         items.Sum(x => x.LineTotal)
             };
         }
     }

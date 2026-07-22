@@ -5,18 +5,22 @@ namespace HomemadeFood.Api.Data
 {
     public class AppDbContext : DbContext
     {
-        public AppDbContext(DbContextOptions<AppDbContext> options)
+        public AppDbContext(
+            DbContextOptions<AppDbContext> options)
             : base(options)
         {
         }
 
         public DbSet<User> Users { get; set; }
 
-        public DbSet<ProducerProfile> ProducerProfiles { get; set; }
+        public DbSet<ProducerProfile>
+            ProducerProfiles
+        { get; set; }
 
         public DbSet<Category> Categories { get; set; }
 
         public DbSet<Food> Foods { get; set; }
+
         public DbSet<Address> Addresses { get; set; }
 
         public DbSet<Order> Orders { get; set; }
@@ -24,177 +28,29 @@ namespace HomemadeFood.Api.Data
         public DbSet<OrderItem> OrderItems { get; set; }
 
         public DbSet<Review> Reviews { get; set; }
+
         public DbSet<Favorite> Favorites { get; set; }
+
         public DbSet<Cart> Carts { get; set; }
 
         public DbSet<CartItem> CartItems { get; set; }
+
         public DbSet<RecommendationSearch>
-    RecommendationSearches
+            RecommendationSearches
         { get; set; }
 
         public DbSet<RecommendationCandidate>
             RecommendationCandidates
         { get; set; }
-        protected override void OnModelCreating(ModelBuilder modelBuilder)
+
+        protected override void OnModelCreating(
+            ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
-            modelBuilder.Entity<Review>(entity =>
-            {
-                entity.Property(x => x.Comment)
-                    .HasMaxLength(1000)
-                    .IsRequired();
-            });
-
-            modelBuilder.Entity<OrderItem>(entity =>
-            {
-                entity.Property(x => x.FoodName)
-                    .HasMaxLength(100)
-                    .IsRequired();
-
-                entity.Property(x => x.UnitPrice)
-                    .HasPrecision(18, 2);
-
-                entity.Property(x => x.TotalPrice)
-                    .HasPrecision(18, 2);
-            });
-            modelBuilder.Entity<Cart>()
-    .HasOne(c => c.User)
-    .WithOne(u => u.Cart)
-    .HasForeignKey<Cart>(c => c.UserId)
-    .OnDelete(DeleteBehavior.Cascade);
-
-            modelBuilder.Entity<Cart>()
-                .HasOne(c => c.ProducerProfile)
-                .WithMany(p => p.Carts)
-                .HasForeignKey(c => c.ProducerProfileId)
-                .OnDelete(DeleteBehavior.Restrict);
-            modelBuilder.Entity<Cart>(
-    entity =>
-    {
-        entity.HasOne(x =>
-                x.RecommendationSearch)
-            .WithMany()
-            .HasForeignKey(x =>
-                x.RecommendationSearchId)
-            .OnDelete(DeleteBehavior.Restrict);
-
-        entity.HasIndex(x =>
-            x.RecommendationSearchId);
-    });
-
-            modelBuilder.Entity<Order>(entity =>
-            {
-                entity.Property(x => x.DeliveryAddressTitle)
-                    .HasMaxLength(50)
-                    .IsRequired();
-
-                entity.Property(x => x.DeliveryAddress)
-                    .HasMaxLength(500)
-                    .IsRequired();
-
-                entity.Property(x => x.PaymentMethod)
-                    .HasMaxLength(30)
-                    .IsRequired();
-
-                entity.Property(x => x.CustomerNote)
-                    .HasMaxLength(500)
-                    .IsRequired();
-
-                entity.Property(x => x.Status)
-                    .HasMaxLength(30)
-                    .IsRequired();
-
-                entity.Property(x => x.TotalPrice)
-                    .HasPrecision(18, 2);
-
-                entity.Property(x => x.SuitabilityScore)
-                    .HasPrecision(5, 2);
-            });
-            modelBuilder.Entity<Order>(
-    entity =>
-    {
-        entity.HasOne(x =>
-                x.RecommendationSearch)
-            .WithMany()
-            .HasForeignKey(x =>
-                x.RecommendationSearchId)
-            .OnDelete(DeleteBehavior.Restrict);
-
-        entity.HasIndex(x =>
-                x.RecommendationSearchId)
-            .IsUnique();
-    });
-
-            modelBuilder.Entity<Address>(entity =>
-            {
-                entity.Property(x => x.Title)
-                    .HasMaxLength(50)
-                    .IsRequired();
-
-                entity.Property(x => x.FullAddress)
-                    .HasMaxLength(500)
-                    .IsRequired();
-            });
-
-            modelBuilder.Entity<Food>(entity =>
-            {
-                entity.Property(x => x.Name)
-                    .HasMaxLength(100)
-                    .IsRequired();
-
-                entity.Property(x => x.Description)
-                    .HasMaxLength(1000)
-                    .IsRequired();
-
-                entity.Property(x => x.ImageUrl)
-                    .HasMaxLength(500)
-                    .IsRequired();
-
-                entity.Property(x => x.Price)
-                    .HasPrecision(18, 2);
-            });
-
-            modelBuilder.Entity<Category>(entity =>
-            {
-                entity.Property(x => x.Name)
-                    .HasMaxLength(100)
-                    .IsRequired();
-
-                entity.Property(x => x.Description)
-                    .HasMaxLength(500)
-                    .IsRequired();
-            });
-
-            modelBuilder.Entity<ProducerProfile>(entity =>
-            {
-                entity.Property(x => x.BusinessName)
-                    .HasMaxLength(150)
-                    .IsRequired();
-
-                entity.Property(x => x.Description)
-                    .HasMaxLength(1000)
-                    .IsRequired();
-
-                entity.Property(x => x.Address)
-                    .HasMaxLength(500)
-                    .IsRequired();
-
-                entity.Property(x => x.VerificationStatus)
-                    .HasMaxLength(30)
-                    .IsRequired();
-
-                entity.Property(x => x.Rating)
-                    .HasPrecision(3, 2);
-                entity.Property(x => x.CapacityDate)
-                    .HasColumnType("date");
-                entity.Property(x => x.CapacityVersion)
-    .IsConcurrencyToken()
-    .HasDefaultValue(1);
-
-
-            });
-
+            // -------------------------------------------------
+            // USER
+            // -------------------------------------------------
 
             modelBuilder.Entity<User>(entity =>
             {
@@ -220,115 +76,324 @@ namespace HomemadeFood.Api.Data
                 entity.Property(x => x.Role)
                     .HasMaxLength(30)
                     .IsRequired();
+
+                entity.HasOne(x => x.ProducerProfile)
+                    .WithOne(x => x.User)
+                    .HasForeignKey<ProducerProfile>(
+                        x => x.UserId);
             });
 
-            modelBuilder.Entity<User>()
-                .HasOne(u => u.ProducerProfile)
-                .WithOne(p => p.User)
-                .HasForeignKey<ProducerProfile>(p => p.UserId);
+            // -------------------------------------------------
+            // PRODUCER PROFILE
+            // -------------------------------------------------
 
-            modelBuilder.Entity<Order>()
-                .HasOne(o => o.Customer)
-                .WithMany(u => u.Orders)
-                .HasForeignKey(o => o.CustomerId)
-                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<ProducerProfile>(entity =>
+            {
+                entity.Property(x => x.BusinessName)
+                    .HasMaxLength(150)
+                    .IsRequired();
 
-            modelBuilder.Entity<Review>()
-                .HasOne(r => r.Customer)
-                .WithMany(u => u.Reviews)
-                .HasForeignKey(r => r.CustomerId)
-                .OnDelete(DeleteBehavior.Restrict);
-            modelBuilder.Entity<Review>()
-    .HasOne(r => r.Order)
-    .WithOne(o => o.Review)
-    .HasForeignKey<Review>(r => r.OrderId)
-    .OnDelete(DeleteBehavior.Restrict);
+                entity.Property(x => x.Description)
+                    .HasMaxLength(1000)
+                    .IsRequired();
 
-            modelBuilder.Entity<Review>()
-                .HasOne(r => r.ProducerProfile)
-                .WithMany(p => p.Reviews)
-                .HasForeignKey(r => r.ProducerProfileId)
-                .OnDelete(DeleteBehavior.Restrict);
-            modelBuilder.Entity<Favorite>()
-    .HasOne(f => f.User)
-    .WithMany(u => u.Favorites)
-    .HasForeignKey(f => f.UserId)
-    .OnDelete(DeleteBehavior.Cascade);
+                entity.Property(x => x.Address)
+                    .HasMaxLength(500)
+                    .IsRequired();
 
-            modelBuilder.Entity<Favorite>()
-                .HasOne(f => f.Food)
-                .WithMany(food => food.Favorites)
-                .HasForeignKey(f => f.FoodId)
-                .OnDelete(DeleteBehavior.Restrict);
+                entity.Property(x => x.VerificationStatus)
+                    .HasMaxLength(30)
+                    .IsRequired();
+                entity.Property(x => x.RejectionReason)
+    .HasMaxLength(500);
 
-            modelBuilder.Entity<Favorite>()
-                .HasIndex(f => new
+                entity.Property(x => x.Rating)
+                    .HasPrecision(3, 2);
+
+                entity.Property(x => x.CapacityDate)
+                    .HasColumnType("date");
+
+                entity.Property(x => x.CapacityVersion)
+                    .IsConcurrencyToken()
+                    .HasDefaultValue(1);
+            });
+
+            // -------------------------------------------------
+            // CATEGORY
+            // -------------------------------------------------
+
+            modelBuilder.Entity<Category>(entity =>
+            {
+                entity.Property(x => x.Name)
+                    .HasMaxLength(100)
+                    .IsRequired();
+
+                entity.Property(x => x.Description)
+                    .HasMaxLength(500)
+                    .IsRequired();
+            });
+
+            // -------------------------------------------------
+            // FOOD
+            // -------------------------------------------------
+
+            modelBuilder.Entity<Food>(entity =>
+            {
+                entity.Property(x => x.Name)
+                    .HasMaxLength(100)
+                    .IsRequired();
+
+                entity.Property(x => x.Description)
+                    .HasMaxLength(1000)
+                    .IsRequired();
+
+                entity.Property(x => x.ImageUrl)
+                    .HasMaxLength(500)
+                    .IsRequired();
+
+                entity.Property(x => x.Price)
+                    .HasPrecision(18, 2);
+            });
+
+            // -------------------------------------------------
+            // ADDRESS
+            // -------------------------------------------------
+
+            modelBuilder.Entity<Address>(entity =>
+            {
+                entity.Property(x => x.Title)
+                    .HasMaxLength(50)
+                    .IsRequired();
+
+                entity.Property(x => x.FullAddress)
+                    .HasMaxLength(500)
+                    .IsRequired();
+            });
+
+            // -------------------------------------------------
+            // CART
+            // -------------------------------------------------
+
+            modelBuilder.Entity<Cart>(entity =>
+            {
+                entity.HasOne(x => x.User)
+                    .WithOne(x => x.Cart)
+                    .HasForeignKey<Cart>(
+                        x => x.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(x => x.ProducerProfile)
+                    .WithMany(x => x.Carts)
+                    .HasForeignKey(
+                        x => x.ProducerProfileId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x =>
+                        x.RecommendationSearch)
+                    .WithMany()
+                    .HasForeignKey(x =>
+                        x.RecommendationSearchId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(x =>
+                    x.RecommendationSearchId);
+            });
+
+            // -------------------------------------------------
+            // CART ITEM
+            // -------------------------------------------------
+
+            modelBuilder.Entity<CartItem>(entity =>
+            {
+                entity.HasOne(x => x.Cart)
+                    .WithMany(x => x.Items)
+                    .HasForeignKey(x => x.CartId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(x => x.Food)
+                    .WithMany(x => x.CartItems)
+                    .HasForeignKey(x => x.FoodId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(x => new
                 {
-                    f.UserId,
-                    f.FoodId
+                    x.CartId,
+                    x.FoodId
                 })
-                .IsUnique();
-            modelBuilder.Entity<Cart>()
-    .HasOne(c => c.User)
-    .WithOne(u => u.Cart)
-    .HasForeignKey<Cart>(c => c.UserId)
-    .OnDelete(DeleteBehavior.Cascade);
+                    .IsUnique();
+            });
 
-            modelBuilder.Entity<Cart>()
-                .HasOne(c => c.ProducerProfile)
-                .WithMany(p => p.Carts)
-                .HasForeignKey(c => c.ProducerProfileId)
-                .OnDelete(DeleteBehavior.Restrict);
+            // -------------------------------------------------
+            // FAVORITE
+            // -------------------------------------------------
 
-            modelBuilder.Entity<CartItem>()
-                .HasOne(ci => ci.Cart)
-                .WithMany(c => c.Items)
-                .HasForeignKey(ci => ci.CartId)
-                .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<Favorite>(entity =>
+            {
+                entity.HasOne(x => x.User)
+                    .WithMany(x => x.Favorites)
+                    .HasForeignKey(x => x.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
 
-            modelBuilder.Entity<CartItem>()
-                .HasOne(ci => ci.Food)
-                .WithMany(f => f.CartItems)
-                .HasForeignKey(ci => ci.FoodId)
-                .OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(x => x.Food)
+                    .WithMany(x => x.Favorites)
+                    .HasForeignKey(x => x.FoodId)
+                    .OnDelete(DeleteBehavior.Restrict);
 
-            modelBuilder.Entity<CartItem>()
-                .HasIndex(ci => new
+                entity.HasIndex(x => new
                 {
-                    ci.CartId,
-                    ci.FoodId
+                    x.UserId,
+                    x.FoodId
                 })
-                .IsUnique();
-            modelBuilder.Entity<Order>()
-    .HasOne(o => o.ProducerProfile)
-    .WithMany(p => p.Orders)
-    .HasForeignKey(o => o.ProducerProfileId)
-    .OnDelete(DeleteBehavior.Restrict);
+                    .IsUnique();
+            });
 
-            modelBuilder.Entity<OrderItem>()
-                .HasOne(oi => oi.Order)
-                .WithMany(o => o.OrderItems)
-                .HasForeignKey(oi => oi.OrderId)
-                .OnDelete(DeleteBehavior.Cascade);
+            // -------------------------------------------------
+            // ORDER
+            // -------------------------------------------------
 
-            modelBuilder.Entity<OrderItem>()
-                .HasOne(oi => oi.Food)
-                .WithMany(f => f.OrderItems)
-                .HasForeignKey(oi => oi.FoodId)
-                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<Order>(entity =>
+            {
+                entity.Property(x =>
+                        x.DeliveryAddressTitle)
+                    .HasMaxLength(50)
+                    .IsRequired();
+
+                entity.Property(x =>
+                        x.DeliveryAddress)
+                    .HasMaxLength(500)
+                    .IsRequired();
+
+                entity.Property(x =>
+                        x.PaymentMethod)
+                    .HasMaxLength(30)
+                    .IsRequired();
+
+                entity.Property(x =>
+                        x.CustomerNote)
+                    .HasMaxLength(500)
+                    .IsRequired();
+
+                entity.Property(x => x.Status)
+                    .HasMaxLength(30)
+                    .IsRequired();
+
+                entity.Property(x =>
+                        x.StatusVersion)
+                    .IsConcurrencyToken()
+                    .HasDefaultValue(1);
+
+                entity.Property(x => x.TotalPrice)
+                    .HasPrecision(18, 2);
+
+                entity.Property(x =>
+                        x.SuitabilityScore)
+                    .HasPrecision(5, 2);
+
+                entity.HasOne(x => x.Customer)
+                    .WithMany(x => x.Orders)
+                    .HasForeignKey(x => x.CustomerId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x =>
+                        x.ProducerProfile)
+                    .WithMany(x => x.Orders)
+                    .HasForeignKey(x =>
+                        x.ProducerProfileId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x =>
+                        x.RecommendationSearch)
+                    .WithMany()
+                    .HasForeignKey(x =>
+                        x.RecommendationSearchId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(x =>
+                        x.RecommendationSearchId)
+                    .IsUnique();
+            });
+
+            // -------------------------------------------------
+            // ORDER ITEM
+            // -------------------------------------------------
+
+            modelBuilder.Entity<OrderItem>(entity =>
+            {
+                entity.Property(x => x.FoodName)
+                    .HasMaxLength(100)
+                    .IsRequired();
+
+                entity.Property(x => x.UnitPrice)
+                    .HasPrecision(18, 2);
+
+                entity.Property(x => x.TotalPrice)
+                    .HasPrecision(18, 2);
+
+                entity.HasOne(x => x.Order)
+                    .WithMany(x => x.OrderItems)
+                    .HasForeignKey(x => x.OrderId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(x => x.Food)
+                    .WithMany(x => x.OrderItems)
+                    .HasForeignKey(x => x.FoodId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // -------------------------------------------------
+            // REVIEW
+            // -------------------------------------------------
+
+            modelBuilder.Entity<Review>(entity =>
+            {
+                entity.Property(x => x.Comment)
+                    .HasMaxLength(1000)
+                    .IsRequired();
+
+                entity.HasOne(x => x.Customer)
+                    .WithMany(x => x.Reviews)
+                    .HasForeignKey(x => x.CustomerId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x => x.Order)
+                    .WithOne(x => x.Review)
+                    .HasForeignKey<Review>(
+                        x => x.OrderId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x =>
+                        x.ProducerProfile)
+                    .WithMany(x => x.Reviews)
+                    .HasForeignKey(x =>
+                        x.ProducerProfileId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // -------------------------------------------------
+            // RECOMMENDATION SEARCH
+            // -------------------------------------------------
+
             modelBuilder.Entity<RecommendationSearch>(
-    entity =>
-    {
-        entity.Property(x => x.SearchText)
-            .HasMaxLength(100)
-            .IsRequired();
+                entity =>
+                {
+                    entity.Property(x =>
+                            x.SearchText)
+                        .HasMaxLength(100)
+                        .IsRequired();
 
-        entity.HasMany(x => x.Candidates)
-            .WithOne(x => x.RecommendationSearch)
-            .HasForeignKey(
-                x => x.RecommendationSearchId)
-            .OnDelete(DeleteBehavior.Cascade);
-    });
+                    entity.HasMany(x =>
+                            x.Candidates)
+                        .WithOne(x =>
+                            x.RecommendationSearch)
+                        .HasForeignKey(x =>
+                            x.RecommendationSearchId)
+                        .OnDelete(
+                            DeleteBehavior.Cascade);
+                });
+
+            // -------------------------------------------------
+            // RECOMMENDATION CANDIDATE
+            // -------------------------------------------------
 
             modelBuilder.Entity<RecommendationCandidate>(
                 entity =>
@@ -337,14 +402,16 @@ namespace HomemadeFood.Api.Data
                         .HasMaxLength(100)
                         .IsRequired();
 
-                    entity.Property(x => x.BusinessName)
+                    entity.Property(x =>
+                            x.BusinessName)
                         .HasMaxLength(150)
                         .IsRequired();
 
                     entity.Property(x => x.Price)
                         .HasPrecision(18, 2);
 
-                    entity.Property(x => x.AverageRating)
+                    entity.Property(x =>
+                            x.AverageRating)
                         .HasPrecision(3, 2);
 
                     entity.HasIndex(x => new

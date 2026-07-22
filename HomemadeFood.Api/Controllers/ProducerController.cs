@@ -62,6 +62,40 @@ namespace HomemadeFood.Api.Controllers
                     "Üretici başvurusu başarıyla oluşturuldu. Admin onayı bekleniyor.",
                     ApiResponseCodes.Created));
         }
+        [Authorize(
+    Roles =
+        UserRoles.Customer + "," +
+        UserRoles.Producer)]
+        [HttpGet("my-application")]
+        public async Task<IActionResult>
+    GetMyApplication()
+        {
+            if (!TryGetUserId(out var userId))
+            {
+                return Unauthorized(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.Unauthorized,
+                        "Kullanıcı bilgisi alınamadı."));
+            }
+
+            var application =
+                await _producerService
+                    .GetMyApplicationAsync(userId);
+
+            if (application == null)
+            {
+                return NotFound(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.NotFound,
+                        "Bu kullanıcıya ait bir üretici başvurusu bulunamadı."));
+            }
+
+            return Ok(
+                ApiResponse<ProducerApplicationStatusResponse>
+                    .Succeed(
+                        application,
+                        "Üretici başvurusu başarıyla getirildi."));
+        }
 
         private bool TryGetUserId(
             out int userId)
