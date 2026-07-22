@@ -43,6 +43,9 @@ namespace HomemadeFood.Api.Entities
 
         public string Status { get; set; }
             = OrderStatuses.Pending;
+        // Aynı sipariş durumunun eşzamanlı olarak
+        // iki farklı işlemle değiştirilmesini engeller.
+        public int StatusVersion { get; set; } = 1;
 
         // Öneri motorunun sipariş oluşturulduğu
         // andaki toplam puanı.

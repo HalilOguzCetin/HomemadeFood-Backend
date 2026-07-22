@@ -1,63 +1,74 @@
-using HomemadeFood.Api.Data;
-using Microsoft.EntityFrameworkCore;
-using HomemadeFood.Api.Interfaces;
-using HomemadeFood.Api.Services;
-using HomemadeFood.Api.Repositories;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
-using System.Text;
-using HomemadeFood.Api.Helpers;
 using System.Security.Claims;
-using HomemadeFood.Api.Infrastructure;
-using Microsoft.AspNetCore.Mvc;
-using HomemadeFood.Api.DTOs.Common;
+using System.Text;
 using HomemadeFood.Api.Constants;
-
+using HomemadeFood.Api.Data;
+using HomemadeFood.Api.DTOs.Common;
+using HomemadeFood.Api.Helpers;
+using HomemadeFood.Api.Infrastructure;
+using HomemadeFood.Api.Interfaces;
+using HomemadeFood.Api.Repositories;
+using HomemadeFood.Api.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// ---------------------------------------------------------
+// ZORUNLU YAPILANDIRMA KONTROLLERÝ
+// ---------------------------------------------------------
+
+var connectionString =
+    builder.Configuration
+        .GetConnectionString("DefaultConnection");
+
+if (string.IsNullOrWhiteSpace(connectionString))
+{
+    throw new InvalidOperationException(
+        "ConnectionStrings:DefaultConnection deðeri bulunamadý. " +
+        "Baðlantý bilgisini User Secrets veya uygulama ayarlarýna ekleyin.");
+}
+
+var jwtKey =
+    builder.Configuration["Jwt:Key"];
+
+var jwtIssuer =
+    builder.Configuration["Jwt:Issuer"];
+
+var jwtAudience =
+    builder.Configuration["Jwt:Audience"];
+
+if (string.IsNullOrWhiteSpace(jwtKey))
+{
+    throw new InvalidOperationException(
+        "Jwt:Key deðeri bulunamadý. " +
+        "JWT anahtarýný User Secrets içine ekleyin.");
+}
+
+if (string.IsNullOrWhiteSpace(jwtIssuer))
+{
+    throw new InvalidOperationException(
+        "Jwt:Issuer deðeri bulunamadý.");
+}
+
+if (string.IsNullOrWhiteSpace(jwtAudience))
+{
+    throw new InvalidOperationException(
+        "Jwt:Audience deðeri bulunamadý.");
+}
+
+var jwtSigningKey =
+    new SymmetricSecurityKey(
+        Encoding.UTF8.GetBytes(jwtKey));
+
+// ---------------------------------------------------------
+// CONTROLLER VE API DAVRANIÞI
+// ---------------------------------------------------------
 
 builder.Services.AddControllers();
-builder.Services.AddScoped<IAuthService, AuthService>();
-builder.Services.AddScoped<IUserRepository, UserRepository>();
-builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
-builder.Services.AddScoped<IProducerRepository, ProducerRepository>();
-builder.Services.AddScoped<IProducerService, ProducerService>();
-builder.Services.AddScoped<IAdminService, AdminService>();
-builder.Services.AddScoped<IFoodRepository, FoodRepository>();
-builder.Services.AddScoped<IFoodService, FoodService>();
-builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
-builder.Services.AddScoped<ICategoryService, CategoryService>();
-builder.Services.AddScoped<IFavoriteRepository, FavoriteRepository>();
-builder.Services.AddScoped<IFavoriteService, FavoriteService>();
-builder.Services.AddScoped<IAddressRepository, AddressRepository>();
-builder.Services.AddScoped<IAddressService, AddressService>();
-builder.Services.AddScoped<ICartRepository, CartRepository>();
-builder.Services.AddScoped<ICartService, CartService>();
-builder.Services.AddScoped<IOrderRepository, OrderRepository>();
-builder.Services.AddScoped<IOrderService, OrderService>();
-builder.Services.AddScoped<IProducerOrderService,ProducerOrderService>();
-builder.Services.AddScoped<IReviewRepository, ReviewRepository>();
-builder.Services.AddSingleton<IAppClock, AppClock>();
-builder.Services.AddScoped<
-    IRecommendationAnalyticsService,
-    RecommendationAnalyticsService>();
-builder.Services.AddScoped<
-    IProducerRecommendationService,
-    ProducerRecommendationService>();
-builder.Services.AddScoped<
-    IProducerCapacityService,
-    ProducerCapacityService>();
-builder.Services.AddScoped<
-    IReviewService,
-    ReviewService>();
-builder.Services.AddProblemDetails();
 
-builder.Services.AddExceptionHandler<
-    GlobalExceptionHandler>();
-var jwtSettings = builder.Configuration.GetSection("Jwt");
-var key = Encoding.UTF8.GetBytes(jwtSettings["Key"]!);
 builder.Services.Configure<ApiBehaviorOptions>(
     options =>
     {
@@ -105,170 +116,375 @@ builder.Services.Configure<ApiBehaviorOptions>(
                     response);
             };
     });
-builder.Services.AddAuthentication(options =>
-{
-    options.DefaultAuthenticateScheme =
-        JwtBearerDefaults.AuthenticationScheme;
 
-    options.DefaultChallengeScheme =
-        JwtBearerDefaults.AuthenticationScheme;
-})
-.AddJwtBearer(options =>
-{
-    options.TokenValidationParameters =
-        new TokenValidationParameters
+// ---------------------------------------------------------
+// VERÝTABANI
+// ---------------------------------------------------------
+
+builder.Services.AddDbContext<AppDbContext>(
+    options =>
+        options.UseMySql(
+            connectionString,
+            ServerVersion.AutoDetect(
+                connectionString)));
+
+// ---------------------------------------------------------
+// SERVÝSLER VE REPOSITORY KAYITLARI
+// ---------------------------------------------------------
+
+builder.Services.AddScoped<
+    IAuthService,
+    AuthService>();
+
+builder.Services.AddScoped<
+    IUserRepository,
+    UserRepository>();
+
+builder.Services.AddScoped<
+    IJwtTokenGenerator,
+    JwtTokenGenerator>();
+
+builder.Services.AddScoped<
+    IProducerRepository,
+    ProducerRepository>();
+
+builder.Services.AddScoped<
+    IProducerService,
+    ProducerService>();
+
+builder.Services.AddScoped<
+    IAdminService,
+    AdminService>();
+
+builder.Services.AddScoped<
+    IFoodRepository,
+    FoodRepository>();
+
+builder.Services.AddScoped<
+    IFoodService,
+    FoodService>();
+
+builder.Services.AddScoped<
+    ICategoryRepository,
+    CategoryRepository>();
+
+builder.Services.AddScoped<
+    ICategoryService,
+    CategoryService>();
+
+builder.Services.AddScoped<
+    IFavoriteRepository,
+    FavoriteRepository>();
+
+builder.Services.AddScoped<
+    IFavoriteService,
+    FavoriteService>();
+
+builder.Services.AddScoped<
+    IAddressRepository,
+    AddressRepository>();
+
+builder.Services.AddScoped<
+    IAddressService,
+    AddressService>();
+
+builder.Services.AddScoped<
+    ICartRepository,
+    CartRepository>();
+
+builder.Services.AddScoped<
+    ICartService,
+    CartService>();
+
+builder.Services.AddScoped<
+    IOrderRepository,
+    OrderRepository>();
+
+builder.Services.AddScoped<
+    IOrderService,
+    OrderService>();
+
+builder.Services.AddScoped<
+    IProducerOrderService,
+    ProducerOrderService>();
+
+builder.Services.AddScoped<
+    IReviewRepository,
+    ReviewRepository>();
+
+builder.Services.AddScoped<
+    IReviewService,
+    ReviewService>();
+
+builder.Services.AddScoped<
+    IProducerCapacityService,
+    ProducerCapacityService>();
+
+builder.Services.AddScoped<
+    IProducerRecommendationService,
+    ProducerRecommendationService>();
+
+builder.Services.AddScoped<
+    IRecommendationAnalyticsService,
+    RecommendationAnalyticsService>();
+
+builder.Services.AddSingleton<
+    IAppClock,
+    AppClock>();
+
+// ---------------------------------------------------------
+// GLOBAL HATA YÖNETÝMÝ
+// ---------------------------------------------------------
+
+builder.Services.AddProblemDetails();
+
+builder.Services.AddExceptionHandler<
+    GlobalExceptionHandler>();
+
+// ---------------------------------------------------------
+// JWT KÝMLÝK DOÐRULAMA
+// ---------------------------------------------------------
+
+builder.Services
+    .AddAuthentication(
+        options =>
         {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
+            options.DefaultAuthenticateScheme =
+                JwtBearerDefaults
+                    .AuthenticationScheme;
 
-            ValidIssuer = jwtSettings["Issuer"],
-            ValidAudience = jwtSettings["Audience"],
-
-            IssuerSigningKey =
-                new SymmetricSecurityKey(key)
-        };
-
-    // Token geçerli göründükten sonra kullanýcýnýn
-    // güncel durumunu veritabanýndan kontrol eder.
-    options.Events = new JwtBearerEvents
-    {
-        OnTokenValidated = async context =>
+            options.DefaultChallengeScheme =
+                JwtBearerDefaults
+                    .AuthenticationScheme;
+        })
+    .AddJwtBearer(
+        options =>
         {
-            var userIdValue =
-                context.Principal?.FindFirstValue(
-                    ClaimTypes.NameIdentifier);
+            options.TokenValidationParameters =
+                new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidateAudience = true,
+                    ValidateLifetime = true,
+                    ValidateIssuerSigningKey = true,
 
-            if (!int.TryParse(
-                    userIdValue,
-                    out var userId))
-            {
-                context.Fail(
-                    "Token içindeki kullanýcý bilgisi geçersiz.");
+                    ValidIssuer =
+                        jwtIssuer,
 
-                return;
-            }
+                    ValidAudience =
+                        jwtAudience,
 
-            var dbContext =
-                context.HttpContext.RequestServices
-                    .GetRequiredService<AppDbContext>();
+                    IssuerSigningKey =
+                        jwtSigningKey,
 
-            var user = await dbContext.Users
-                .AsNoTracking()
-                .FirstOrDefaultAsync(
-                    x => x.Id == userId);
+                    /*
+                     * Token süresi dolduðunda varsayýlan
+                     * beþ dakikalýk toleransý kaldýrýr.
+                     */
+                    ClockSkew =
+                        TimeSpan.Zero
+                };
 
-            if (user == null || !user.IsActive)
-            {
-                context.Fail(
-                    "Kullanýcý bulunamadý veya hesap pasif.");
+            options.Events =
+                new JwtBearerEvents
+                {
+                    /*
+                     * Token imzasý geçerli olsa bile
+                     * kullanýcýnýn güncel durumu
+                     * veritabanýndan kontrol edilir.
+                     */
+                    OnTokenValidated =
+                        async context =>
+                        {
+                            var userIdValue =
+                                context.Principal?
+                                    .FindFirstValue(
+                                        ClaimTypes
+                                            .NameIdentifier);
 
-                return;
-            }
+                            if (!int.TryParse(
+                                    userIdValue,
+                                    out var userId))
+                            {
+                                context.Fail(
+                                    "Token içindeki kullanýcý bilgisi geçersiz.");
 
-            var tokenRole =
-                context.Principal?.FindFirstValue(
-                    ClaimTypes.Role);
+                                return;
+                            }
 
-            if (!string.Equals(
-                    tokenRole,
-                    user.Role,
-                    StringComparison.Ordinal))
-            {
-                context.Fail(
-                    "Kullanýcýnýn rolü deðiþti. Yeniden giriþ yapýlmalýdýr.");
+                            var dbContext =
+                                context.HttpContext
+                                    .RequestServices
+                                    .GetRequiredService<
+                                        AppDbContext>();
 
-                return;
-            }
-        },
+                            var user =
+                                await dbContext.Users
+                                    .AsNoTracking()
+                                    .FirstOrDefaultAsync(
+                                        x => x.Id == userId,
+                                        context.HttpContext
+                                            .RequestAborted);
 
-        OnChallenge = async context =>
-        {
-            // ASP.NET Core'un varsayýlan 401 cevabýný engeller.
-            context.HandleResponse();
+                            if (user == null ||
+                                !user.IsActive)
+                            {
+                                context.Fail(
+                                    "Kullanýcý bulunamadý veya hesap pasif.");
 
-            if (context.Response.HasStarted)
-            {
-                return;
-            }
+                                return;
+                            }
 
-            context.Response.StatusCode =
-                StatusCodes.Status401Unauthorized;
+                            var tokenRole =
+                                context.Principal?
+                                    .FindFirstValue(
+                                        ClaimTypes.Role);
 
-            context.Response.ContentType =
-                "application/json; charset=utf-8";
+                            if (!string.Equals(
+                                    tokenRole,
+                                    user.Role,
+                                    StringComparison
+                                        .Ordinal))
+                            {
+                                context.Fail(
+                                    "Kullanýcýnýn rolü deðiþti. Yeniden giriþ yapýlmalýdýr.");
 
-            var response =
-                ApiResponse<object>.Fail(
-                    ApiResponseCodes.Unauthorized,
-                    "Bu iþlem için giriþ yapmanýz gerekiyor veya oturumunuz geçersiz.");
+                                return;
+                            }
+                        },
 
-            await context.Response
-                .WriteAsJsonAsync(response);
-        },
+                    /*
+                     * Giriþ yapýlmamýþ veya token
+                     * geçersiz olduðunda standart 401 cevabý.
+                     */
+                    OnChallenge =
+                        async context =>
+                        {
+                            context.HandleResponse();
 
-        OnForbidden = async context =>
-        {
-            if (context.Response.HasStarted)
-            {
-                return;
-            }
+                            if (context.Response
+                                .HasStarted)
+                            {
+                                return;
+                            }
 
-            context.Response.StatusCode =
-                StatusCodes.Status403Forbidden;
+                            context.Response.StatusCode =
+                                StatusCodes
+                                    .Status401Unauthorized;
 
-            context.Response.ContentType =
-                "application/json; charset=utf-8";
+                            context.Response.ContentType =
+                                "application/json; charset=utf-8";
 
-            var response =
-                ApiResponse<object>.Fail(
-                    ApiResponseCodes.Forbidden,
-                    "Bu iþlem için gerekli yetkiye sahip deðilsiniz.");
+                            var response =
+                                ApiResponse<object>.Fail(
+                                    ApiResponseCodes
+                                        .Unauthorized,
 
-            await context.Response
-                .WriteAsJsonAsync(response);
-        }
-    };
-});
+                                    "Bu iþlem için giriþ yapmanýz gerekiyor veya oturumunuz geçersiz.");
 
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseMySql(
-        builder.Configuration.GetConnectionString("DefaultConnection"),
-        ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("DefaultConnection"))
-    )
-);
+                            await context.Response
+                                .WriteAsJsonAsync(
+                                    response);
+                        },
+
+                    /*
+                     * Kullanýcý giriþ yapmýþ olsa bile
+                     * rolü yetmiyorsa standart 403 cevabý.
+                     */
+                    OnForbidden =
+                        async context =>
+                        {
+                            if (context.Response
+                                .HasStarted)
+                            {
+                                return;
+                            }
+
+                            context.Response.StatusCode =
+                                StatusCodes
+                                    .Status403Forbidden;
+
+                            context.Response.ContentType =
+                                "application/json; charset=utf-8";
+
+                            var response =
+                                ApiResponse<object>.Fail(
+                                    ApiResponseCodes
+                                        .Forbidden,
+
+                                    "Bu iþlem için gerekli yetkiye sahip deðilsiniz.");
+
+                            await context.Response
+                                .WriteAsJsonAsync(
+                                    response);
+                        }
+                };
+        });
+
+builder.Services.AddAuthorization();
+
+// ---------------------------------------------------------
+// SWAGGER
+// ---------------------------------------------------------
 
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(options =>
-{
-    options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
-    {
-        Name = "Authorization",
-        Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
-        Scheme = "bearer",
-        BearerFormat = "JWT",
-        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
-        Description = "JWT token giriniz."
-    });
 
-    options.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+builder.Services.AddSwaggerGen(
+    options =>
     {
-        {
-            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+        options.AddSecurityDefinition(
+            "Bearer",
+            new OpenApiSecurityScheme
             {
-                Reference = new Microsoft.OpenApi.Models.OpenApiReference
-                {
-                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
-            },
-            Array.Empty<string>()
-        }
-    });
-});
+                Name =
+                    "Authorization",
 
-var app = builder.Build();
+                Type =
+                    SecuritySchemeType.Http,
+
+                Scheme =
+                    "bearer",
+
+                BearerFormat =
+                    "JWT",
+
+                In =
+                    ParameterLocation.Header,
+
+                Description =
+                    "JWT token deðerini giriniz."
+            });
+
+        options.AddSecurityRequirement(
+            new OpenApiSecurityRequirement
+            {
+                {
+                    new OpenApiSecurityScheme
+                    {
+                        Reference =
+                            new OpenApiReference
+                            {
+                                Type =
+                                    ReferenceType
+                                        .SecurityScheme,
+
+                                Id =
+                                    "Bearer"
+                            }
+                    },
+
+                    Array.Empty<string>()
+                }
+            });
+    });
+
+// ---------------------------------------------------------
+// UYGULAMA
+// ---------------------------------------------------------
+
+var app =
+    builder.Build();
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -278,12 +494,11 @@ if (app.Environment.IsDevelopment())
 app.UseExceptionHandler();
 
 app.UseHttpsRedirection();
+
 app.UseAuthentication();
 
 app.UseAuthorization();
 
 app.MapControllers();
-
-
 
 app.Run();

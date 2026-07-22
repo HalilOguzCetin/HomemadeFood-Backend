@@ -1,9 +1,10 @@
-﻿using HomemadeFood.Api.Constants;
+﻿using System.Security.Claims;
+using HomemadeFood.Api.Constants;
+using HomemadeFood.Api.DTOs.Admin;
 using HomemadeFood.Api.DTOs.Common;
 using HomemadeFood.Api.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 
 namespace HomemadeFood.Api.Controllers
 {
@@ -12,12 +13,14 @@ namespace HomemadeFood.Api.Controllers
     [Authorize(Roles = UserRoles.Admin)]
     public class AdminController : ControllerBase
     {
-        private readonly IAdminService _adminService;
+        private readonly IAdminService
+            _adminService;
 
         public AdminController(
             IAdminService adminService)
         {
-            _adminService = adminService;
+            _adminService =
+                adminService;
         }
 
         [HttpGet("producer-applications")]
@@ -36,8 +39,9 @@ namespace HomemadeFood.Api.Controllers
 
         [HttpPost(
             "producer-applications/{id:int}/approve")]
-        public async Task<IActionResult> ApproveProducer(
-            int id)
+        public async Task<IActionResult>
+            ApproveProducer(
+                int id)
         {
             if (id <= 0)
             {
@@ -47,7 +51,8 @@ namespace HomemadeFood.Api.Controllers
                         "Üretici başvuru ID değeri sıfırdan büyük olmalıdır."));
             }
 
-            if (!TryGetAdminId(out var adminId))
+            if (!TryGetAdminId(
+                    out var adminId))
             {
                 return Unauthorized(
                     ApiResponse<object>.Fail(
@@ -74,10 +79,73 @@ namespace HomemadeFood.Api.Controllers
                 ApiResponse<object>.Succeed(
                     new
                     {
-                        producerApplicationId = id,
-                        approved = true
+                        producerApplicationId =
+                            id,
+
+                        approved =
+                            true
                     },
                     "Üretici başvurusu başarıyla onaylandı."));
+        }
+
+        [HttpPost(
+            "producer-applications/{id:int}/reject")]
+        public async Task<IActionResult>
+            RejectProducer(
+                int id,
+                [FromBody]
+                RejectProducerApplicationRequest request)
+        {
+            if (id <= 0)
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.BadRequest,
+                        "Üretici başvuru ID değeri sıfırdan büyük olmalıdır."));
+            }
+
+            if (!TryGetAdminId(
+                    out var adminId))
+            {
+                return Unauthorized(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.Unauthorized,
+                        "Admin bilgisi alınamadı."));
+            }
+
+            var rejectionReason =
+                request.Reason.Trim();
+
+            var result =
+                await _adminService
+                    .RejectProducerAsync(
+                        id,
+                        adminId,
+                        rejectionReason);
+
+            if (!result)
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes
+                            .ProducerRejectionFailed,
+                        "Başvuru bulunamadı veya daha önce işleme alınmış olabilir."));
+            }
+
+            return Ok(
+                ApiResponse<object>.Succeed(
+                    new
+                    {
+                        producerApplicationId =
+                            id,
+
+                        rejected =
+                            true,
+
+                        reason =
+                            rejectionReason
+                    },
+                    "Üretici başvurusu başarıyla reddedildi."));
         }
 
         private bool TryGetAdminId(

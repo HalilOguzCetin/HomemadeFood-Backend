@@ -37,7 +37,14 @@ namespace HomemadeFood.Api.Entities
 
         public int? ApprovedByAdminId { get; set; }
 
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime? RejectedAt { get; set; }
+
+        public int? RejectedByAdminId { get; set; }
+
+        public string? RejectionReason { get; set; }
+
+        public DateTime CreatedAt { get; set; } =
+            DateTime.UtcNow;
         public ICollection<Food> Foods { get; set; } = new List<Food>();
         public ICollection<Order> Orders { get; set; } = new List<Order>();
 

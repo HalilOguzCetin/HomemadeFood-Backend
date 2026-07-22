@@ -7,6 +7,8 @@ namespace HomemadeFood.Api.Interfaces
         Task AddAsync(ProducerProfile producerProfile);
 
         Task<bool> HasApplicationAsync(int userId);
+        Task<ProducerProfile?> GetByUserIdAsync(
+    int userId);
 
         Task<List<ProducerProfile>> GetPendingApplicationsAsync();
 

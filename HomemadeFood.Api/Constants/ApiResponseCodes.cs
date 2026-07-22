@@ -73,6 +73,8 @@
     "PRODUCER_APPLICATION_FAILED";
         public const string ProducerApprovalFailed =
     "PRODUCER_APPROVAL_FAILED";
+        public const string ProducerRejectionFailed =
+    "PRODUCER_REJECTION_FAILED";
         public const string OrderAcceptanceFailed =
     "ORDER_ACCEPTANCE_FAILED";
 

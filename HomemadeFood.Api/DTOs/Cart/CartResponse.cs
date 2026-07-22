@@ -6,7 +6,10 @@
 
         public int? ProducerProfileId { get; set; }
 
-        public string BusinessName { get; set; } = string.Empty;
+        public int? RecommendationSearchId { get; set; }
+
+        public string BusinessName { get; set; }
+            = string.Empty;
 
         public List<CartItemResponse> Items { get; set; }
             = new List<CartItemResponse>();

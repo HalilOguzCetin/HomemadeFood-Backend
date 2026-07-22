@@ -1,8 +1,9 @@
-﻿using HomemadeFood.Api.DTOs.Order;
+﻿using HomemadeFood.Api.Constants;
+using HomemadeFood.Api.DTOs.Order;
 using HomemadeFood.Api.DTOs.ProducerOrder;
 using HomemadeFood.Api.Interfaces;
+using Microsoft.EntityFrameworkCore;
 using OrderEntity = HomemadeFood.Api.Entities.Order;
-using HomemadeFood.Api.Constants;
 
 namespace HomemadeFood.Api.Services
 {
@@ -10,26 +11,35 @@ namespace HomemadeFood.Api.Services
     {
         private readonly IOrderRepository _orderRepository;
         private readonly IProducerRepository _producerRepository;
+
         private readonly IProducerCapacityService
-    _producerCapacityService;
+            _producerCapacityService;
+
+        private readonly IAppClock _appClock;
 
         public ProducerOrderService(
-    IOrderRepository orderRepository,
-    IProducerRepository producerRepository,
-    IProducerCapacityService producerCapacityService)
+            IOrderRepository orderRepository,
+            IProducerRepository producerRepository,
+            IProducerCapacityService producerCapacityService,
+            IAppClock appClock)
         {
             _orderRepository = orderRepository;
             _producerRepository = producerRepository;
+
             _producerCapacityService =
                 producerCapacityService;
+
+            _appClock = appClock;
         }
 
         public async Task<List<ProducerOrderResponse>>
-            GetMyOrdersAsync(int producerUserId)
+            GetMyOrdersAsync(
+                int producerUserId)
         {
             var producerProfile =
                 await _producerRepository
-                    .GetApprovedByUserIdAsync(producerUserId);
+                    .GetApprovedByUserIdAsync(
+                        producerUserId);
 
             if (producerProfile == null)
             {
@@ -46,51 +56,63 @@ namespace HomemadeFood.Api.Services
                 .ToList();
         }
 
-        public Task<ProducerOrderResponse?> AcceptOrderAsync(
-            int producerUserId,
-            int orderId)
+        public Task<ProducerOrderResponse?>
+            AcceptOrderAsync(
+                int producerUserId,
+                int orderId)
         {
             return ChangeStatusAsync(
                 producerUserId,
                 orderId,
-                expectedStatus: OrderStatuses.Pending,
-                newStatus: OrderStatuses.Accepted,
+                expectedStatus:
+                    OrderStatuses.Pending,
+                newStatus:
+                    OrderStatuses.Accepted,
                 restoreCapacity: false);
         }
 
-        public Task<ProducerOrderResponse?> RejectOrderAsync(
-            int producerUserId,
-            int orderId)
+        public Task<ProducerOrderResponse?>
+            RejectOrderAsync(
+                int producerUserId,
+                int orderId)
         {
             return ChangeStatusAsync(
                 producerUserId,
                 orderId,
-                expectedStatus: OrderStatuses.Pending,
-newStatus: OrderStatuses.Rejected,
+                expectedStatus:
+                    OrderStatuses.Pending,
+                newStatus:
+                    OrderStatuses.Rejected,
                 restoreCapacity: true);
         }
 
-        public Task<ProducerOrderResponse?> StartPreparingAsync(
-            int producerUserId,
-            int orderId)
+        public Task<ProducerOrderResponse?>
+            StartPreparingAsync(
+                int producerUserId,
+                int orderId)
         {
             return ChangeStatusAsync(
                 producerUserId,
                 orderId,
-               expectedStatus: OrderStatuses.Accepted,
-newStatus: OrderStatuses.Preparing,
+                expectedStatus:
+                    OrderStatuses.Accepted,
+                newStatus:
+                    OrderStatuses.Preparing,
                 restoreCapacity: false);
         }
 
-        public Task<ProducerOrderResponse?> MarkReadyAsync(
-            int producerUserId,
-            int orderId)
+        public Task<ProducerOrderResponse?>
+            MarkReadyAsync(
+                int producerUserId,
+                int orderId)
         {
             return ChangeStatusAsync(
                 producerUserId,
                 orderId,
-                expectedStatus: OrderStatuses.Preparing,
-newStatus: OrderStatuses.Ready,
+                expectedStatus:
+                    OrderStatuses.Preparing,
+                newStatus:
+                    OrderStatuses.Ready,
                 restoreCapacity: false);
         }
 
@@ -102,20 +124,25 @@ newStatus: OrderStatuses.Ready,
             return ChangeStatusAsync(
                 producerUserId,
                 orderId,
-                expectedStatus: OrderStatuses.Ready,
-newStatus: OrderStatuses.OutForDelivery,
+                expectedStatus:
+                    OrderStatuses.Ready,
+                newStatus:
+                    OrderStatuses.OutForDelivery,
                 restoreCapacity: false);
         }
 
-        public Task<ProducerOrderResponse?> MarkDeliveredAsync(
-            int producerUserId,
-            int orderId)
+        public Task<ProducerOrderResponse?>
+            MarkDeliveredAsync(
+                int producerUserId,
+                int orderId)
         {
             return ChangeStatusAsync(
                 producerUserId,
                 orderId,
-                expectedStatus: OrderStatuses.OutForDelivery,
-newStatus: OrderStatuses.Delivered,
+                expectedStatus:
+                    OrderStatuses.OutForDelivery,
+                newStatus:
+                    OrderStatuses.Delivered,
                 restoreCapacity: false);
         }
 
@@ -129,7 +156,8 @@ newStatus: OrderStatuses.Delivered,
         {
             var producerProfile =
                 await _producerRepository
-                    .GetApprovedByUserIdAsync(producerUserId);
+                    .GetApprovedByUserIdAsync(
+                        producerUserId);
 
             if (producerProfile == null)
             {
@@ -147,7 +175,8 @@ newStatus: OrderStatuses.Delivered,
                 return null;
             }
 
-            // Durumların yanlış sırayla değiştirilmesini engeller.
+            // Sipariş durumlarının yanlış sırayla
+            // değiştirilmesini engeller.
             if (!string.Equals(
                     order.Status,
                     expectedStatus,
@@ -156,23 +185,62 @@ newStatus: OrderStatuses.Delivered,
                 return null;
             }
 
+            /*
+             * Sipariş reddediliyorsa, sipariş oluşturulurken
+             * ayrılan günlük kapasite geri verilir.
+             *
+             * Kapasite değişikliği ve sipariş durum değişikliği
+             * aynı SaveChangesAsync içinde kaydedilir.
+             */
             if (restoreCapacity)
             {
                 var totalQuantity =
-                    order.OrderItems.Sum(x => x.Quantity);
+                    order.OrderItems.Sum(
+                        item => item.Quantity);
 
-                _producerCapacityService.RestoreForOrder(
-                    order.ProducerProfile,
-                    order.CreatedAt,
-                    totalQuantity);
+                _producerCapacityService
+                    .RestoreForOrder(
+                        order.ProducerProfile,
+                        order.CreatedAt,
+                        totalQuantity);
             }
 
-            order.Status = newStatus;
-            order.StatusUpdatedAt = DateTime.UtcNow;
+            order.Status =
+                newStatus;
 
-            await _orderRepository.SaveChangesAsync();
+            order.StatusUpdatedAt =
+                _appClock.UtcNow;
 
-            return MapToResponse(order);
+            /*
+             * StatusVersion bir concurrency token olduğu için
+             * SQL güncellemesinde eski sürüm değeri kontrol edilir.
+             *
+             * İki istek aynı siparişi aynı anda değiştirmeye
+             * çalışırsa yalnızca ilk işlem başarılı olur.
+             */
+            order.StatusVersion++;
+
+            try
+            {
+                await _orderRepository
+                    .SaveChangesAsync();
+
+                return MapToResponse(order);
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                /*
+                 * Sipariş durumu başka bir işlem tarafından
+                 * bizden önce değiştirilmiştir.
+                 *
+                 * SaveChanges başarısız olduğu için:
+                 *
+                 * - İkinci durum değişikliği kaydedilmez
+                 * - Kapasite değişikliği kaydedilmez
+                 * - İşlem güvenli biçimde başarısız döner
+                 */
+                return null;
+            }
         }
 
         private static ProducerOrderResponse MapToResponse(
@@ -180,12 +248,14 @@ newStatus: OrderStatuses.Delivered,
         {
             return new ProducerOrderResponse
             {
-                OrderId = order.Id,
+                OrderId =
+                    order.Id,
+
                 RecommendationSearchId =
-    order.RecommendationSearchId,
+                    order.RecommendationSearchId,
 
                 SuitabilityScore =
-    order.SuitabilityScore,
+                    order.SuitabilityScore,
 
                 CustomerFullName =
                     order.Customer.FullName,
@@ -212,7 +282,8 @@ newStatus: OrderStatuses.Delivered,
                     order.CustomerNote,
 
                 TotalQuantity =
-                    order.OrderItems.Sum(x => x.Quantity),
+                    order.OrderItems.Sum(
+                        item => item.Quantity),
 
                 TotalPrice =
                     order.TotalPrice,
@@ -226,29 +297,31 @@ newStatus: OrderStatuses.Delivered,
                 StatusUpdatedAt =
                     order.StatusUpdatedAt,
 
-                Items = order.OrderItems
-                    .Select(item =>
-                        new OrderItemResponse
-                        {
-                            OrderItemId =
-                                item.Id,
+                Items =
+                    order.OrderItems
+                        .Select(
+                            item =>
+                                new OrderItemResponse
+                                {
+                                    OrderItemId =
+                                        item.Id,
 
-                            FoodId =
-                                item.FoodId,
+                                    FoodId =
+                                        item.FoodId,
 
-                            FoodName =
-                                item.FoodName,
+                                    FoodName =
+                                        item.FoodName,
 
-                            Quantity =
-                                item.Quantity,
+                                    Quantity =
+                                        item.Quantity,
 
-                            UnitPrice =
-                                item.UnitPrice,
+                                    UnitPrice =
+                                        item.UnitPrice,
 
-                            TotalPrice =
-                                item.TotalPrice
-                        })
-                    .ToList()
+                                    TotalPrice =
+                                        item.TotalPrice
+                                })
+                        .ToList()
             };
         }
     }
