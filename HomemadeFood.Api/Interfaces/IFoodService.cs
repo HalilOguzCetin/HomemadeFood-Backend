@@ -10,6 +10,9 @@ namespace HomemadeFood.Api.Interfaces
 
         Task<List<FoodResponse>> GetMyFoodsAsync(
             int userId);
+        Task<FoodResponse?> GetMyFoodByIdAsync(
+    int userId,
+    int foodId);
 
         Task<FoodResponse?> UpdateFoodAsync(
             int userId,
