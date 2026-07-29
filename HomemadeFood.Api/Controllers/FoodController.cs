@@ -132,6 +132,45 @@ namespace HomemadeFood.Api.Controllers
                     foods,
                     "Üretici yemekleri başarıyla getirildi."));
         }
+        [HttpGet("my-foods/{id:int}")]
+        public async Task<IActionResult> GetMyFoodById(
+    int id)
+        {
+            if (id <= 0)
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.BadRequest,
+                        "Yemek ID değeri sıfırdan büyük olmalıdır."));
+            }
+
+            if (!TryGetUserId(out var userId))
+            {
+                return Unauthorized(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.Unauthorized,
+                        "Kullanıcı bilgisi alınamadı."));
+            }
+
+            var food =
+                await _foodService
+                    .GetMyFoodByIdAsync(
+                        userId,
+                        id);
+
+            if (food == null)
+            {
+                return NotFound(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.FoodNotFound,
+                        "Yemek bulunamadı veya bu yemek size ait değil."));
+            }
+
+            return Ok(
+                ApiResponse<object>.Succeed(
+                    food,
+                    "Üretici yemeği başarıyla getirildi."));
+        }
 
         [HttpPut("{id:int}")]
         public async Task<IActionResult> UpdateFood(

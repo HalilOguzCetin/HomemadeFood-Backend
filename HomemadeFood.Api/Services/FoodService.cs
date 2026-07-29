@@ -116,6 +116,32 @@ namespace HomemadeFood.Api.Services
                 .Select(MapToResponse)
                 .ToList();
         }
+        public async Task<FoodResponse?> GetMyFoodByIdAsync(
+    int userId,
+    int foodId)
+        {
+            var producerProfile =
+                await _producerRepository
+                    .GetApprovedByUserIdAsync(userId);
+
+            if (producerProfile == null)
+            {
+                return null;
+            }
+
+            var food =
+                await _foodRepository
+                    .GetByIdAndProducerProfileIdAsync(
+                        foodId,
+                        producerProfile.Id);
+
+            if (food == null)
+            {
+                return null;
+            }
+
+            return MapToResponse(food);
+        }
 
         public async Task<FoodResponse?> UpdateFoodAsync(
             int userId,
