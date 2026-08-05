@@ -16,5 +16,19 @@ namespace HomemadeFood.Api.Interfaces
             int producerProfileId,
             int adminUserId,
             string rejectionReason);
+
+        Task<List<AdminUserListItemResponse>>
+            GetUsersAsync(
+                string? role,
+                bool? isActive,
+                string? search);
+
+        Task<AdminUserDetailResponse?>
+            GetUserByIdAsync(
+                int userId);
+
+        Task<bool> UpdateUserStatusAsync(
+            int userId,
+            bool isActive);
     }
 }
