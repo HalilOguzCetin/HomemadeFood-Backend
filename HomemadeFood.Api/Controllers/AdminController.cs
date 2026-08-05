@@ -102,6 +102,153 @@ namespace HomemadeFood.Api.Controllers
                     },
                     "Üretici başvurusu başarıyla onaylandı."));
         }
+        [HttpGet("users")]
+        public async Task<IActionResult> GetUsers(
+    [FromQuery]
+    string? role = null,
+
+    [FromQuery]
+    bool? isActive = null,
+
+    [FromQuery]
+    string? search = null)
+        {
+            if (!TryNormalizeUserRole(
+                    role,
+                    out var normalizedRole))
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.BadRequest,
+
+                        "Kullanıcı rolü Customer, Producer veya Admin olmalıdır."));
+            }
+
+            if (!string.IsNullOrWhiteSpace(search) &&
+                search.Trim().Length > 100)
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.BadRequest,
+
+                        "Arama metni en fazla 100 karakter olabilir."));
+            }
+
+            var users =
+                await _adminService
+                    .GetUsersAsync(
+                        normalizedRole,
+                        isActive,
+                        search);
+
+            return Ok(
+                ApiResponse<
+                    List<AdminUserListItemResponse>>
+                    .Succeed(
+                        users,
+
+                        "Kullanıcılar başarıyla getirildi."));
+        }
+
+        [HttpGet("users/{id:int}")]
+        public async Task<IActionResult> GetUserById(
+            int id)
+        {
+            if (id <= 0)
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.BadRequest,
+
+                        "Kullanıcı ID değeri sıfırdan büyük olmalıdır."));
+            }
+
+            var user =
+                await _adminService
+                    .GetUserByIdAsync(id);
+
+            if (user == null)
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.BadRequest,
+
+                        "Kullanıcı bulunamadı."));
+            }
+
+            return Ok(
+                ApiResponse<AdminUserDetailResponse>
+                    .Succeed(
+                        user,
+
+                        "Kullanıcı detayı başarıyla getirildi."));
+        }
+
+        [HttpPatch("users/{id:int}/status")]
+        public async Task<IActionResult> UpdateUserStatus(
+            int id,
+
+            [FromBody]
+    UpdateUserStatusRequest request)
+        {
+            if (id <= 0)
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.BadRequest,
+
+                        "Kullanıcı ID değeri sıfırdan büyük olmalıdır."));
+            }
+
+            if (!TryGetAdminId(
+                    out var adminId))
+            {
+                return Unauthorized(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.Unauthorized,
+
+                        "Admin bilgisi alınamadı."));
+            }
+
+            if (id == adminId &&
+                !request.IsActive)
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.BadRequest,
+
+                        "Admin kendi hesabını pasifleştiremez."));
+            }
+
+            var updated =
+                await _adminService
+                    .UpdateUserStatusAsync(
+                        id,
+                        request.IsActive);
+
+            if (!updated)
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.BadRequest,
+
+                        "Kullanıcı bulunamadı veya hesap durumu güncellenemedi."));
+            }
+
+            return Ok(
+                ApiResponse<object>.Succeed(
+                    new
+                    {
+                        userId = id,
+
+                        isActive =
+                            request.IsActive
+                    },
+
+                    request.IsActive
+                        ? "Kullanıcı hesabı aktifleştirildi."
+                        : "Kullanıcı hesabı pasifleştirildi."));
+        }
 
         [HttpPost(
             "producer-applications/{id:int}/reject")]
@@ -161,6 +308,56 @@ namespace HomemadeFood.Api.Controllers
                             rejectionReason
                     },
                     "Üretici başvurusu başarıyla reddedildi."));
+        }
+        private static bool TryNormalizeUserRole(
+    string? role,
+    out string? normalizedRole)
+        {
+            if (string.IsNullOrWhiteSpace(role))
+            {
+                normalizedRole =
+                    null;
+
+                return true;
+            }
+
+            var normalizedValue =
+                role.Trim();
+
+            if (normalizedValue.Equals(
+                    UserRoles.Customer,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                normalizedRole =
+                    UserRoles.Customer;
+
+                return true;
+            }
+
+            if (normalizedValue.Equals(
+                    UserRoles.Producer,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                normalizedRole =
+                    UserRoles.Producer;
+
+                return true;
+            }
+
+            if (normalizedValue.Equals(
+                    UserRoles.Admin,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                normalizedRole =
+                    UserRoles.Admin;
+
+                return true;
+            }
+
+            normalizedRole =
+                null;
+
+            return false;
         }
         private static bool
     TryNormalizeApplicationStatus(
