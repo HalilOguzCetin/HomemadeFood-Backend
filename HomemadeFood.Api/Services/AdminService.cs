@@ -23,16 +23,29 @@ namespace HomemadeFood.Api.Services
                 appClock;
         }
 
-        public async Task<List<PendingProducerResponse>>
-            GetPendingProducerApplicationsAsync()
+        public async Task<
+    List<AdminProducerApplicationResponse>>
+    GetProducerApplicationsAsync(
+        string verificationStatus)
         {
+            var normalizedStatus =
+                NormalizeVerificationStatus(
+                    verificationStatus);
+
+            if (normalizedStatus == null)
+            {
+                return new List<
+                    AdminProducerApplicationResponse>();
+            }
+
             var applications =
                 await _producerRepository
-                    .GetPendingApplicationsAsync();
+                    .GetApplicationsByStatusAsync(
+                        normalizedStatus);
 
             return applications
                 .Select(application =>
-                    new PendingProducerResponse
+                    new AdminProducerApplicationResponse
                     {
                         ProducerProfileId =
                             application.Id,
@@ -46,6 +59,9 @@ namespace HomemadeFood.Api.Services
                         Email =
                             application.User.Email,
 
+                        UserRole =
+                            application.User.Role,
+
                         BusinessName =
                             application.BusinessName,
 
@@ -55,14 +71,44 @@ namespace HomemadeFood.Api.Services
                         Address =
                             application.Address,
 
+                        Latitude =
+                            application.Latitude,
+
+                        Longitude =
+                            application.Longitude,
+
                         DailyCapacity =
                             application.DailyCapacity,
+
+                        RemainingCapacity =
+                            application.RemainingCapacity,
+
+                        IsAvailable =
+                            application.IsAvailable,
+
+                        IsApproved =
+                            application.IsApproved,
 
                         VerificationStatus =
                             application.VerificationStatus,
 
                         CreatedAt =
-                            application.CreatedAt
+                            application.CreatedAt,
+
+                        ApprovedAt =
+                            application.ApprovedAt,
+
+                        ApprovedByAdminId =
+                            application.ApprovedByAdminId,
+
+                        RejectedAt =
+                            application.RejectedAt,
+
+                        RejectedByAdminId =
+                            application.RejectedByAdminId,
+
+                        RejectionReason =
+                            application.RejectionReason
                     })
                 .ToList();
         }
@@ -202,5 +248,36 @@ namespace HomemadeFood.Api.Services
 
             return true;
         }
+        private static string?
+    NormalizeVerificationStatus(
+        string verificationStatus)
+        {
+            var normalizedValue =
+                verificationStatus.Trim();
+
+            if (normalizedValue.Equals(
+                    ProducerVerificationStatuses.Pending,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return ProducerVerificationStatuses.Pending;
+            }
+
+            if (normalizedValue.Equals(
+                    ProducerVerificationStatuses.Approved,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return ProducerVerificationStatuses.Approved;
+            }
+
+            if (normalizedValue.Equals(
+                    ProducerVerificationStatuses.Rejected,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return ProducerVerificationStatuses.Rejected;
+            }
+
+            return null;
+        }
     }
+
 }
