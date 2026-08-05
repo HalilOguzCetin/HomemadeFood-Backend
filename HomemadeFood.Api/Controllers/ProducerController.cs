@@ -20,6 +20,78 @@ namespace HomemadeFood.Api.Controllers
         {
             _producerService = producerService;
         }
+        [Authorize(Roles = UserRoles.Producer)]
+        [HttpGet("my-profile")]
+        public async Task<IActionResult> GetMyProfile()
+        {
+            if (!TryGetUserId(out var userId))
+            {
+                return Unauthorized(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.Unauthorized,
+                        "Kullanıcı bilgisi alınamadı."));
+            }
+
+            var profile =
+                await _producerService
+                    .GetMyApplicationAsync(userId);
+
+            if (profile == null)
+            {
+                return NotFound(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.NotFound,
+                        "Üretici profili bulunamadı."));
+            }
+
+            if (!profile.IsApproved)
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.BadRequest,
+                        "Üretici profili henüz onaylanmamış."));
+            }
+
+            return Ok(
+                ApiResponse<ProducerApplicationStatusResponse>
+                    .Succeed(
+                        profile,
+                        "Üretici profili başarıyla getirildi."));
+        }
+        [Authorize(Roles = UserRoles.Producer)]
+        [HttpPut("my-profile")]
+        public async Task<IActionResult> UpdateMyProfile(
+    [FromBody]
+    UpdateProducerProfileRequest request)
+        {
+            if (!TryGetUserId(out var userId))
+            {
+                return Unauthorized(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.Unauthorized,
+                        "Kullanıcı bilgisi alınamadı."));
+            }
+
+            var updatedProfile =
+                await _producerService
+                    .UpdateMyProfileAsync(
+                        userId,
+                        request);
+
+            if (updatedProfile == null)
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.BadRequest,
+                        "Üretici profili güncellenemedi. Profil bulunamamış, onaylanmamış veya aynı anda başka bir işlemle değiştirilmiş olabilir."));
+            }
+
+            return Ok(
+                ApiResponse<ProducerApplicationStatusResponse>
+                    .Succeed(
+                        updatedProfile,
+                        "Üretici profili başarıyla güncellendi."));
+        }
 
         [Authorize(Roles = UserRoles.Customer)]
         [HttpPost("apply")]

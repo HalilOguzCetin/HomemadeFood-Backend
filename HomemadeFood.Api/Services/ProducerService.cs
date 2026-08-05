@@ -317,5 +317,228 @@ namespace HomemadeFood.Api.Services
                     producerProfile.RejectionReason
             };
         }
+        public async Task<
+    ProducerApplicationStatusResponse?>
+    UpdateMyProfileAsync(
+        int userId,
+        UpdateProducerProfileRequest request)
+        {
+            var businessName =
+                request.BusinessName.Trim();
+
+            var description =
+                request.Description.Trim();
+
+            var address =
+                request.Address.Trim();
+
+            /*
+             * DTO doğrulamasına ek olarak servis
+             * katmanında savunmacı kontroller yapılır.
+             */
+            if (string.IsNullOrWhiteSpace(
+                    businessName) ||
+                businessName.Length < 2 ||
+                businessName.Length > 150)
+            {
+                return null;
+            }
+
+            if (string.IsNullOrWhiteSpace(
+                    description) ||
+                description.Length < 10 ||
+                description.Length > 1000)
+            {
+                return null;
+            }
+
+            if (string.IsNullOrWhiteSpace(
+                    address) ||
+                address.Length < 10 ||
+                address.Length > 500)
+            {
+                return null;
+            }
+
+            if (request.Latitude < -90 ||
+                request.Latitude > 90)
+            {
+                return null;
+            }
+
+            if (request.Longitude < -180 ||
+                request.Longitude > 180)
+            {
+                return null;
+            }
+
+            if (request.DailyCapacity < 1 ||
+                request.DailyCapacity > 1000)
+            {
+                return null;
+            }
+
+            var producerProfile =
+                await _producerRepository
+                    .GetByUserIdAsync(userId);
+
+            if (producerProfile == null)
+            {
+                return null;
+            }
+
+            /*
+             * Yalnızca Admin tarafından onaylanmış
+             * üretici profilleri güncellenebilir.
+             */
+            if (!producerProfile.IsApproved ||
+                !string.Equals(
+                    producerProfile
+                        .VerificationStatus,
+                    ProducerVerificationStatuses
+                        .Approved,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            var today =
+                _appClock.TurkeyToday;
+
+            int usedCapacity;
+
+            /*
+             * Kapasite tarihi bugüne ait değilse
+             * yeni gün başlamıştır ve kullanılmış
+             * kapasite sıfır kabul edilir.
+             */
+            if (producerProfile.CapacityDate != today)
+            {
+                usedCapacity = 0;
+            }
+            else
+            {
+                usedCapacity =
+                    Math.Max(
+                        0,
+                        producerProfile.DailyCapacity -
+                        producerProfile.RemainingCapacity);
+            }
+
+            /*
+             * Günlük kapasite azaltılırsa daha önce
+             * kullanılmış kapasite kaybolmaz.
+             *
+             * Örnek:
+             * Eski kapasite: 50
+             * Kalan: 30
+             * Kullanılan: 20
+             *
+             * Yeni kapasite 40 yapılırsa
+             * yeni kalan kapasite 20 olur.
+             */
+            var newRemainingCapacity =
+                Math.Max(
+                    0,
+                    request.DailyCapacity -
+                    usedCapacity);
+
+            producerProfile.BusinessName =
+                businessName;
+
+            producerProfile.Description =
+                description;
+
+            producerProfile.Address =
+                address;
+
+            producerProfile.Latitude =
+                request.Latitude;
+
+            producerProfile.Longitude =
+                request.Longitude;
+
+            producerProfile.DailyCapacity =
+                request.DailyCapacity;
+
+            producerProfile.RemainingCapacity =
+                newRemainingCapacity;
+
+            producerProfile.CapacityDate =
+                today;
+
+            /*
+             * IsAvailable üreticinin yeni sipariş
+             * almak isteyip istemediğini ifade eder.
+             * Kalan kapasite ayrıca sipariş
+             * oluşturma sırasında kontrol edilir.
+             */
+            producerProfile.IsAvailable =
+                request.IsAvailable;
+
+            /*
+             * Optimistic concurrency sürümü
+             * her başarılı değişiklikte artırılır.
+             */
+            producerProfile.CapacityVersion++;
+
+            try
+            {
+                await _producerRepository
+                    .SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                return null;
+            }
+
+            return new ProducerApplicationStatusResponse
+            {
+                ProducerProfileId =
+                    producerProfile.Id,
+
+                BusinessName =
+                    producerProfile.BusinessName,
+
+                Description =
+                    producerProfile.Description,
+
+                Address =
+                    producerProfile.Address,
+
+                Latitude =
+                    producerProfile.Latitude,
+
+                Longitude =
+                    producerProfile.Longitude,
+
+                DailyCapacity =
+                    producerProfile.DailyCapacity,
+
+                RemainingCapacity =
+                    producerProfile.RemainingCapacity,
+
+                IsAvailable =
+                    producerProfile.IsAvailable,
+
+                IsApproved =
+                    producerProfile.IsApproved,
+
+                VerificationStatus =
+                    producerProfile.VerificationStatus,
+
+                CreatedAt =
+                    producerProfile.CreatedAt,
+
+                ApprovedAt =
+                    producerProfile.ApprovedAt,
+
+                RejectedAt =
+                    producerProfile.RejectedAt,
+
+                RejectionReason =
+                    producerProfile.RejectionReason
+            };
+        }
     }
 }
