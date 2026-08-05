@@ -4,8 +4,9 @@ namespace HomemadeFood.Api.Interfaces
 {
     public interface IAdminService
     {
-        Task<List<PendingProducerResponse>>
-            GetPendingProducerApplicationsAsync();
+        Task<List<AdminProducerApplicationResponse>>
+            GetProducerApplicationsAsync(
+                string verificationStatus);
 
         Task<bool> ApproveProducerAsync(
             int producerProfileId,

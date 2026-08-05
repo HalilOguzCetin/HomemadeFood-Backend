@@ -25,16 +25,31 @@ namespace HomemadeFood.Api.Controllers
 
         [HttpGet("producer-applications")]
         public async Task<IActionResult>
-            GetPendingApplications()
+    GetProducerApplications(
+        [FromQuery]
+        string? status = null)
         {
+            if (!TryNormalizeApplicationStatus(
+                    status,
+                    out var normalizedStatus))
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.BadRequest,
+                        "Başvuru durumu Pending, Approved veya Rejected olmalıdır."));
+            }
+
             var applications =
                 await _adminService
-                    .GetPendingProducerApplicationsAsync();
+                    .GetProducerApplicationsAsync(
+                        normalizedStatus);
 
             return Ok(
-                ApiResponse<object>.Succeed(
-                    applications,
-                    "Bekleyen üretici başvuruları başarıyla getirildi."));
+                ApiResponse<
+                    List<AdminProducerApplicationResponse>>
+                    .Succeed(
+                        applications,
+                        "Üretici başvuruları başarıyla getirildi."));
         }
 
         [HttpPost(
@@ -146,6 +161,57 @@ namespace HomemadeFood.Api.Controllers
                             rejectionReason
                     },
                     "Üretici başvurusu başarıyla reddedildi."));
+        }
+        private static bool
+    TryNormalizeApplicationStatus(
+        string? status,
+        out string normalizedStatus)
+        {
+            if (string.IsNullOrWhiteSpace(status))
+            {
+                normalizedStatus =
+                    ProducerVerificationStatuses.Pending;
+
+                return true;
+            }
+
+            var normalizedValue =
+                status.Trim();
+
+            if (normalizedValue.Equals(
+                    ProducerVerificationStatuses.Pending,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                normalizedStatus =
+                    ProducerVerificationStatuses.Pending;
+
+                return true;
+            }
+
+            if (normalizedValue.Equals(
+                    ProducerVerificationStatuses.Approved,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                normalizedStatus =
+                    ProducerVerificationStatuses.Approved;
+
+                return true;
+            }
+
+            if (normalizedValue.Equals(
+                    ProducerVerificationStatuses.Rejected,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                normalizedStatus =
+                    ProducerVerificationStatuses.Rejected;
+
+                return true;
+            }
+
+            normalizedStatus =
+                string.Empty;
+
+            return false;
         }
 
         private bool TryGetAdminId(

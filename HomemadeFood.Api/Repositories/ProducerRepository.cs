@@ -42,6 +42,22 @@ namespace HomemadeFood.Api.Repositories
                 .OrderBy(x => x.CreatedAt)
                 .ToListAsync();
         }
+        public async Task<List<ProducerProfile>>
+    GetApplicationsByStatusAsync(
+        string verificationStatus)
+        {
+            return await _context
+                .ProducerProfiles
+                .AsNoTracking()
+                .Include(producerProfile =>
+                    producerProfile.User)
+                .Where(producerProfile =>
+                    producerProfile.VerificationStatus ==
+                    verificationStatus)
+                .OrderByDescending(producerProfile =>
+                    producerProfile.CreatedAt)
+                .ToListAsync();
+        }
 
         public async Task<ProducerProfile?> GetByIdWithUserAsync(int producerProfileId)
         {
