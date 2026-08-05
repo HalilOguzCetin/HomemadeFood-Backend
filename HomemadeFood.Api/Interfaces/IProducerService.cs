@@ -11,5 +11,10 @@ namespace HomemadeFood.Api.Interfaces
         Task<ProducerApplicationStatusResponse?>
             GetMyApplicationAsync(
                 int userId);
+
+        Task<ProducerApplicationStatusResponse?>
+            UpdateMyProfileAsync(
+                int userId,
+                UpdateProducerProfileRequest request);
     }
 }
