@@ -10,7 +10,9 @@ namespace HomemadeFood.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Roles = UserRoles.Producer)]
+    [Authorize(
+    Policy =
+        AuthorizationPolicies.ApprovedProducer)]
     public class FoodController : ControllerBase
     {
         private readonly IFoodService _foodService;

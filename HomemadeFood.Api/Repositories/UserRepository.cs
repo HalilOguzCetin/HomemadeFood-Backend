@@ -16,7 +16,7 @@ namespace HomemadeFood.Api.Repositories
         }
 
         public async Task<User?> GetByEmailAsync(
-            string email)
+     string email)
         {
             var normalizedEmail =
                 email
@@ -24,8 +24,10 @@ namespace HomemadeFood.Api.Repositories
                     .ToLowerInvariant();
 
             return await _context.Users
-                .FirstOrDefaultAsync(x =>
-                    x.Email == normalizedEmail);
+                .Include(user =>
+                    user.ProducerProfile)
+                .FirstOrDefaultAsync(user =>
+                    user.Email == normalizedEmail);
         }
 
         public async Task<User?> GetByIdAsync(
