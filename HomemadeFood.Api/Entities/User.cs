@@ -4,27 +4,85 @@
     {
         public int Id { get; set; }
 
-        public string FullName { get; set; } = string.Empty;
+        public string FullName { get; set; } =
+            string.Empty;
 
-        public string Email { get; set; } = string.Empty;
+        public string Email { get; set; } =
+            string.Empty;
 
-        public string PasswordHash { get; set; } = string.Empty;
+        public string PasswordHash { get; set; } =
+            string.Empty;
 
-        public string Phone { get; set; } = string.Empty;
+        public string Phone { get; set; } =
+            string.Empty;
 
-        public string Role { get; set; } = "Customer";
+        public string Role { get; set; } =
+            "Customer";
 
-        public bool IsActive { get; set; } = true;
+        public bool IsActive { get; set; } =
+            true;
 
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-        public ProducerProfile? ProducerProfile { get; set; }
-        public ICollection<Address> Addresses { get; set; } = new List<Address>();
+        public DateTime CreatedAt { get; set; } =
+            DateTime.UtcNow;
 
-        public ICollection<Order> Orders { get; set; } = new List<Order>();
+        /*
+         * Art arda başarısız giriş sayısı.
+         * Başarılı girişten sonra sıfırlanır.
+         */
+        public int FailedLoginCount { get; set; } =
+            0;
 
-        public ICollection<Review> Reviews { get; set; } = new List<Review>();
-        public ICollection<Favorite> Favorites { get; set; }
-    = new List<Favorite>();
+        /*
+         * Hesabın geçici kilidinin biteceği UTC zaman.
+         * Null ise hesap giriş açısından kilitli değildir.
+         */
+        public DateTime? LockoutEndAt { get; set; }
+
+        /*
+         * Son başarısız giriş denemesinin UTC zamanı.
+         * İleride güvenlik kayıtları için kullanılabilir.
+         */
+        public DateTime? LastFailedLoginAt
+        {
+            get;
+            set;
+        }
+
+        /*
+         * Son başarılı girişin UTC zamanı.
+         */
+        public DateTime? LastLoginAt { get; set; }
+
+        public ProducerProfile? ProducerProfile
+        {
+            get;
+            set;
+        }
+
+        public ICollection<Address> Addresses
+        {
+            get;
+            set;
+        } = new List<Address>();
+
+        public ICollection<Order> Orders
+        {
+            get;
+            set;
+        } = new List<Order>();
+
+        public ICollection<Review> Reviews
+        {
+            get;
+            set;
+        } = new List<Review>();
+
+        public ICollection<Favorite> Favorites
+        {
+            get;
+            set;
+        } = new List<Favorite>();
+
         public Cart? Cart { get; set; }
     }
 }

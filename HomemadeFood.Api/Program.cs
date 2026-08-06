@@ -15,6 +15,9 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using HomemadeFood.Api.Authorization;
 using Microsoft.AspNetCore.Authorization;
+using System.Globalization;
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -498,7 +501,108 @@ builder.Services.AddSwaggerGen(
 // ---------------------------------------------------------
 // UYGULAMA
 // ---------------------------------------------------------
+// ---------------------------------------------------------
+// RATE LIMITING
+// ---------------------------------------------------------
 
+builder.Services.AddRateLimiter(
+    options =>
+    {
+        options.RejectionStatusCode =
+            StatusCodes.Status429TooManyRequests;
+
+        /*
+         * Login limiti IP adresine göre uygulanýr.
+         *
+         * Her IP adresi için:
+         * 1 dakika içinde en fazla 10 login isteði.
+         */
+        options.AddPolicy(
+            RateLimitPolicies.Login,
+
+            httpContext =>
+                RateLimitPartition
+                    .GetFixedWindowLimiter(
+                        partitionKey:
+                            httpContext.Connection
+                                .RemoteIpAddress
+                                ?.ToString()
+                            ?? "unknown",
+
+                        factory: _ =>
+                            new FixedWindowRateLimiterOptions
+                            {
+                                PermitLimit =
+                                    10,
+
+                                Window =
+                                    TimeSpan
+                                        .FromMinutes(1),
+
+                                QueueLimit =
+                                    0,
+
+                                QueueProcessingOrder =
+                                    QueueProcessingOrder
+                                        .OldestFirst,
+
+                                AutoReplenishment =
+                                    true
+                            }));
+
+        options.OnRejected =
+            async (
+                context,
+                cancellationToken) =>
+            {
+                var response =
+                    context.HttpContext
+                        .Response;
+
+                response.StatusCode =
+                    StatusCodes
+                        .Status429TooManyRequests;
+
+                response.ContentType =
+                    "application/json; charset=utf-8";
+
+                /*
+                 * Rate limiter bekleme süresi bilgisi
+                 * ürettiyse Retry-After baþlýðýna ekle.
+                 */
+                if (
+                    context.Lease.TryGetMetadata(
+                        MetadataName.RetryAfter,
+                        out var retryAfter)
+                )
+                {
+                    var retryAfterSeconds =
+                        Math.Max(
+                            1,
+                            (int)Math.Ceiling(
+                                retryAfter
+                                    .TotalSeconds));
+
+                    response.Headers[
+                        "Retry-After"
+                    ] =
+                        retryAfterSeconds
+                            .ToString(
+                                NumberFormatInfo
+                                    .InvariantInfo);
+                }
+
+                var apiResponse =
+                    ApiResponse<object>.Fail(
+                        "RATE_LIMIT_EXCEEDED",
+
+                        "Çok fazla giriþ denemesi yapýldý. Lütfen kýsa bir süre sonra tekrar deneyin.");
+
+                await response.WriteAsJsonAsync(
+                    apiResponse,
+                    cancellationToken);
+            };
+    });
 var app =
     builder.Build();
 
@@ -509,8 +613,11 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseExceptionHandler();
-
 app.UseHttpsRedirection();
+
+app.UseRouting();
+
+app.UseRateLimiter();
 
 app.UseAuthentication();
 
