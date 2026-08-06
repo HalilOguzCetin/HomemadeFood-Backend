@@ -183,6 +183,40 @@ namespace HomemadeFood.Api.Controllers
 
                         "Kullanıcı detayı başarıyla getirildi."));
         }
+        [HttpGet("orders/{id:int}")]
+        public async Task<IActionResult>
+    GetOrderById(
+        int id)
+        {
+            if (id <= 0)
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.BadRequest,
+
+                        "Sipariş ID değeri sıfırdan büyük olmalıdır."));
+            }
+
+            var order =
+                await _adminService
+                    .GetOrderByIdAsync(id);
+
+            if (order == null)
+            {
+                return NotFound(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.OrderNotFound,
+
+                        "Sipariş bulunamadı."));
+            }
+
+            return Ok(
+                ApiResponse<AdminOrderDetailResponse>
+                    .Succeed(
+                        order,
+
+                        "Sipariş detayı başarıyla getirildi."));
+        }
 
         [HttpPatch("users/{id:int}/status")]
         public async Task<IActionResult> UpdateUserStatus(
@@ -248,6 +282,96 @@ namespace HomemadeFood.Api.Controllers
                     request.IsActive
                         ? "Kullanıcı hesabı aktifleştirildi."
                         : "Kullanıcı hesabı pasifleştirildi."));
+        }
+        [HttpGet("orders")]
+        public async Task<IActionResult> GetOrders(
+    [FromQuery]
+    string? status = null,
+
+    [FromQuery]
+    int? customerId = null,
+
+    [FromQuery]
+    int? producerProfileId = null,
+
+    [FromQuery]
+    string? search = null,
+
+    [FromQuery]
+    DateOnly? dateFrom = null,
+
+    [FromQuery]
+    DateOnly? dateTo = null)
+        {
+            if (!TryNormalizeOrderStatus(
+                    status,
+                    out var normalizedStatus))
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.BadRequest,
+
+                        "Sipariş durumu Pending, Accepted, Preparing, Ready, OutForDelivery, Delivered, Rejected veya Cancelled olmalıdır."));
+            }
+
+            if (customerId.HasValue &&
+                customerId.Value <= 0)
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.BadRequest,
+
+                        "Müşteri ID değeri sıfırdan büyük olmalıdır."));
+            }
+
+            if (producerProfileId.HasValue &&
+                producerProfileId.Value <= 0)
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.BadRequest,
+
+                        "Üretici profil ID değeri sıfırdan büyük olmalıdır."));
+            }
+
+            if (!string.IsNullOrWhiteSpace(search) &&
+                search.Trim().Length > 100)
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.BadRequest,
+
+                        "Arama metni en fazla 100 karakter olabilir."));
+            }
+
+            if (dateFrom.HasValue &&
+                dateTo.HasValue &&
+                dateFrom.Value > dateTo.Value)
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.BadRequest,
+
+                        "Başlangıç tarihi bitiş tarihinden sonra olamaz."));
+            }
+
+            var orders =
+                await _adminService
+                    .GetOrdersAsync(
+                        normalizedStatus,
+                        customerId,
+                        producerProfileId,
+                        search,
+                        dateFrom,
+                        dateTo);
+
+            return Ok(
+                ApiResponse<
+                    List<AdminOrderListItemResponse>>
+                    .Succeed(
+                        orders,
+
+                        "Siparişler başarıyla getirildi."));
         }
 
         [HttpPost(
@@ -358,6 +482,46 @@ namespace HomemadeFood.Api.Controllers
                 null;
 
             return false;
+        }
+        private static bool TryNormalizeOrderStatus(
+    string? status,
+    out string? normalizedStatus)
+        {
+            if (string.IsNullOrWhiteSpace(status))
+            {
+                normalizedStatus =
+                    null;
+
+                return true;
+            }
+
+            var normalizedValue =
+                status.Trim();
+
+            var allowedStatuses =
+                new[]
+                {
+            OrderStatuses.Pending,
+            OrderStatuses.Accepted,
+            OrderStatuses.Preparing,
+            OrderStatuses.Ready,
+            OrderStatuses.OutForDelivery,
+            OrderStatuses.Delivered,
+            OrderStatuses.Rejected,
+            OrderStatuses.Cancelled
+                };
+
+            normalizedStatus =
+                allowedStatuses
+                    .FirstOrDefault(
+                        allowedStatus =>
+                            allowedStatus.Equals(
+                                normalizedValue,
+
+                                StringComparison
+                                    .OrdinalIgnoreCase));
+
+            return normalizedStatus != null;
         }
         private static bool
     TryNormalizeApplicationStatus(

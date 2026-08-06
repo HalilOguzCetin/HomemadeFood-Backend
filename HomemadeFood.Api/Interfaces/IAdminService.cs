@@ -30,5 +30,18 @@ namespace HomemadeFood.Api.Interfaces
         Task<bool> UpdateUserStatusAsync(
             int userId,
             bool isActive);
+
+        Task<List<AdminOrderListItemResponse>>
+            GetOrdersAsync(
+                string? status,
+                int? customerId,
+                int? producerProfileId,
+                string? search,
+                DateOnly? dateFrom,
+                DateOnly? dateTo);
+
+        Task<AdminOrderDetailResponse?>
+            GetOrderByIdAsync(
+                int orderId);
     }
 }
