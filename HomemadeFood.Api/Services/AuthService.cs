@@ -15,14 +15,18 @@ namespace HomemadeFood.Api.Services
             _jwtTokenGenerator;
 
         public AuthService(
-            IUserRepository userRepository,
-            IJwtTokenGenerator jwtTokenGenerator)
+    IUserRepository userRepository,
+    IJwtTokenGenerator jwtTokenGenerator,
+    IAppClock appClock)
         {
             _userRepository =
                 userRepository;
 
             _jwtTokenGenerator =
                 jwtTokenGenerator;
+
+            _appClock =
+                appClock;
         }
 
         public async Task<bool> RegisterAsync(
@@ -72,7 +76,7 @@ namespace HomemadeFood.Api.Services
                         true,
 
                     CreatedAt =
-                        DateTime.UtcNow
+    _appClock.UtcNow
                 };
 
             await _userRepository
@@ -83,9 +87,29 @@ namespace HomemadeFood.Api.Services
 
             return true;
         }
+        private readonly IAppClock _appClock;
+
+        private const int MaxFailedLoginAttempts =
+            5;
+
+        private static readonly TimeSpan
+            LoginLockoutDuration =
+                TimeSpan.FromMinutes(15);
+
+        /*
+         * Sistemde bulunmayan e-postalarda da BCrypt
+         * çalıştırarak cevap süresi farkını azaltır.
+         *
+         * Bu gerçek bir kullanıcı şifresi değildir.
+         */
+        private static readonly string
+            DummyPasswordHash =
+                BCrypt.Net.BCrypt.HashPassword(
+                    "HomemadeFood-Dummy-Login-Password",
+                    12);
 
         public async Task<LoginResponse?> LoginAsync(
-            LoginRequest request)
+     LoginRequest request)
         {
             var normalizedEmail =
                 request.Email
@@ -97,21 +121,102 @@ namespace HomemadeFood.Api.Services
                     .GetByEmailAsync(
                         normalizedEmail);
 
-            if (user == null ||
-                !user.IsActive)
-            {
-                return null;
-            }
+            /*
+             * Kullanıcı bulunmasa bile BCrypt çalıştırılır.
+             * Böylece "hesap yok" ve "şifre yanlış"
+             * durumlarının işlem süreleri birbirine
+             * daha yakın tutulur.
+             */
+            var passwordHashToVerify =
+                user?.PasswordHash ??
+                DummyPasswordHash;
 
             var isPasswordValid =
                 BCrypt.Net.BCrypt.Verify(
                     request.Password,
-                    user.PasswordHash);
+                    passwordHashToVerify);
 
-            if (!isPasswordValid)
+            var now =
+                _appClock.UtcNow;
+
+            /*
+             * Kullanıcı yok, hesap pasif veya hesap
+             * geçici olarak kilitliyse aynı genel
+             * başarısızlık sonucu döndürülür.
+             */
+            if (user == null)
             {
                 return null;
             }
+
+            if (!user.IsActive)
+            {
+                return null;
+            }
+
+            if (
+                user.LockoutEndAt.HasValue &&
+                user.LockoutEndAt.Value > now
+            )
+            {
+                return null;
+            }
+
+            /*
+             * Önceki kilit süresi tamamlandıysa
+             * sayaç temizlenir ve yeni denemeler
+             * sıfırdan başlatılır.
+             */
+            if (
+                user.LockoutEndAt.HasValue &&
+                user.LockoutEndAt.Value <= now
+            )
+            {
+                user.LockoutEndAt =
+                    null;
+
+                user.FailedLoginCount =
+                    0;
+            }
+
+            if (!isPasswordValid)
+            {
+                user.FailedLoginCount++;
+
+                user.LastFailedLoginAt =
+                    now;
+
+                if (
+                    user.FailedLoginCount >=
+                    MaxFailedLoginAttempts
+                )
+                {
+                    user.LockoutEndAt =
+                        now.Add(
+                            LoginLockoutDuration);
+                }
+
+                await _userRepository
+                    .SaveChangesAsync();
+
+                return null;
+            }
+
+            /*
+             * Başarılı girişte başarısız deneme
+             * sayacı ve geçici kilit temizlenir.
+             */
+            user.FailedLoginCount =
+                0;
+
+            user.LockoutEndAt =
+                null;
+
+            user.LastLoginAt =
+                now;
+
+            await _userRepository
+                .SaveChangesAsync();
 
             var token =
                 _jwtTokenGenerator

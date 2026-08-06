@@ -4,6 +4,7 @@ using HomemadeFood.Api.DTOs.Common;
 using HomemadeFood.Api.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using System.Security.Claims;
 
 namespace HomemadeFood.Api.Controllers
@@ -62,6 +63,8 @@ namespace HomemadeFood.Api.Controllers
                     ApiResponseCodes.Created));
         }
 
+        [EnableRateLimiting(
+    RateLimitPolicies.Login)]
         [HttpPost("login")]
         public async Task<IActionResult> Login(
             [FromBody] LoginRequest request)
