@@ -13,6 +13,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using HomemadeFood.Api.Authorization;
+using Microsoft.AspNetCore.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -227,6 +229,9 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     IRecommendationAnalyticsService,
     RecommendationAnalyticsService>();
+builder.Services.AddScoped<
+    IAuthorizationHandler,
+    ApprovedProducerAuthorizationHandler>();
 
 builder.Services.AddSingleton<
     IAppClock,
@@ -421,7 +426,19 @@ builder.Services
                 };
         });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(
+    options =>
+    {
+        options.AddPolicy(
+            AuthorizationPolicies.ApprovedProducer,
+            policy =>
+            {
+                policy.RequireAuthenticatedUser();
+
+                policy.AddRequirements(
+                    new ApprovedProducerRequirement());
+            });
+    });
 
 // ---------------------------------------------------------
 // SWAGGER

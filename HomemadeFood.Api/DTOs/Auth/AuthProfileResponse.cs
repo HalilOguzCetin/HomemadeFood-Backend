@@ -1,6 +1,6 @@
 ﻿namespace HomemadeFood.Api.DTOs.Auth
 {
-    public class LoginResponse
+    public class AuthProfileResponse
     {
         public int UserId { get; set; }
 
@@ -30,8 +30,5 @@
             get;
             set;
         }
-
-        public string Token { get; set; } =
-            string.Empty;
     }
 }

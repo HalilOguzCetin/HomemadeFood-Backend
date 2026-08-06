@@ -112,8 +112,7 @@ namespace HomemadeFood.Api.Services
             producerProfile.RejectionReason =
                 null;
 
-            producerProfile.User.Role =
-                UserRoles.Producer;
+            
 
             await _producerRepository
                 .SaveChangesAsync();
@@ -182,8 +181,7 @@ namespace HomemadeFood.Api.Services
             producerProfile.ApprovedByAdminId =
                 null;
 
-            producerProfile.User.Role =
-                UserRoles.Customer;
+           
 
             await _producerRepository
                 .SaveChangesAsync();
@@ -775,32 +773,22 @@ namespace HomemadeFood.Api.Services
         }
 
         private static string?
-            NormalizeUserRole(
-                string role)
+    NormalizeUserRole(
+        string role)
         {
             var normalizedValue =
                 role.Trim();
 
             if (normalizedValue.Equals(
                     UserRoles.Customer,
-                    StringComparison
-                        .OrdinalIgnoreCase))
+                    StringComparison.OrdinalIgnoreCase))
             {
                 return UserRoles.Customer;
             }
 
             if (normalizedValue.Equals(
-                    UserRoles.Producer,
-                    StringComparison
-                        .OrdinalIgnoreCase))
-            {
-                return UserRoles.Producer;
-            }
-
-            if (normalizedValue.Equals(
                     UserRoles.Admin,
-                    StringComparison
-                        .OrdinalIgnoreCase))
+                    StringComparison.OrdinalIgnoreCase))
             {
                 return UserRoles.Admin;
             }

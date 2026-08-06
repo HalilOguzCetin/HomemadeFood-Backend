@@ -121,7 +121,7 @@ namespace HomemadeFood.Api.Controllers
                     ApiResponse<object>.Fail(
                         ApiResponseCodes.BadRequest,
 
-                        "Kullanıcı rolü Customer, Producer veya Admin olmalıdır."));
+                        "Kullanıcı rolü Customer veya Admin olmalıdır."));
             }
 
             if (!string.IsNullOrWhiteSpace(search) &&
@@ -439,9 +439,7 @@ namespace HomemadeFood.Api.Controllers
         {
             if (string.IsNullOrWhiteSpace(role))
             {
-                normalizedRole =
-                    null;
-
+                normalizedRole = null;
                 return true;
             }
 
@@ -459,16 +457,6 @@ namespace HomemadeFood.Api.Controllers
             }
 
             if (normalizedValue.Equals(
-                    UserRoles.Producer,
-                    StringComparison.OrdinalIgnoreCase))
-            {
-                normalizedRole =
-                    UserRoles.Producer;
-
-                return true;
-            }
-
-            if (normalizedValue.Equals(
                     UserRoles.Admin,
                     StringComparison.OrdinalIgnoreCase))
             {
@@ -478,9 +466,7 @@ namespace HomemadeFood.Api.Controllers
                 return true;
             }
 
-            normalizedRole =
-                null;
-
+            normalizedRole = null;
             return false;
         }
         private static bool TryNormalizeOrderStatus(

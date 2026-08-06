@@ -20,7 +20,9 @@ namespace HomemadeFood.Api.Controllers
         {
             _producerService = producerService;
         }
-        [Authorize(Roles = UserRoles.Producer)]
+        [Authorize(
+    Policy =
+        AuthorizationPolicies.ApprovedProducer)]
         [HttpGet("my-profile")]
         public async Task<IActionResult> GetMyProfile()
         {
@@ -58,7 +60,9 @@ namespace HomemadeFood.Api.Controllers
                         profile,
                         "Üretici profili başarıyla getirildi."));
         }
-        [Authorize(Roles = UserRoles.Producer)]
+        [Authorize(
+     Policy =
+         AuthorizationPolicies.ApprovedProducer)]
         [HttpPut("my-profile")]
         public async Task<IActionResult> UpdateMyProfile(
     [FromBody]
@@ -134,10 +138,7 @@ namespace HomemadeFood.Api.Controllers
                     "Üretici başvurusu başarıyla oluşturuldu. Admin onayı bekleniyor.",
                     ApiResponseCodes.Created));
         }
-        [Authorize(
-    Roles =
-        UserRoles.Customer + "," +
-        UserRoles.Producer)]
+        [Authorize(Roles = UserRoles.Customer)]
         [HttpGet("my-application")]
         public async Task<IActionResult>
     GetMyApplication()

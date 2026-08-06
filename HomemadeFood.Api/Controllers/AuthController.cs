@@ -86,34 +86,39 @@ namespace HomemadeFood.Api.Controllers
 
         [Authorize]
         [HttpGet("profile")]
-        public IActionResult Profile()
+        public async Task<IActionResult> Profile()
         {
-            var userId =
+            var userIdValue =
                 User.FindFirstValue(
                     ClaimTypes.NameIdentifier);
 
-            var fullName =
-                User.FindFirstValue(
-                    ClaimTypes.Name);
+            if (!int.TryParse(
+                    userIdValue,
+                    out var userId))
+            {
+                return Unauthorized(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.Unauthorized,
+                        "Kullanıcı bilgisi alınamadı."));
+            }
 
-            var email =
-                User.FindFirstValue(
-                    ClaimTypes.Email);
+            var profile =
+                await _authService
+                    .GetProfileAsync(userId);
 
-            var role =
-                User.FindFirstValue(
-                    ClaimTypes.Role);
+            if (profile == null)
+            {
+                return Unauthorized(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.Unauthorized,
+                        "Kullanıcı bulunamadı veya hesap pasif."));
+            }
 
             return Ok(
-                ApiResponse<object>.Succeed(
-                    new
-                    {
-                        userId,
-                        fullName,
-                        email,
-                        role
-                    },
-                    "Kullanıcı profili başarıyla getirildi."));
+                ApiResponse<AuthProfileResponse>
+                    .Succeed(
+                        profile,
+                        "Kullanıcı profili başarıyla getirildi."));
         }
 
         [Authorize(Roles = UserRoles.Customer)]
@@ -130,7 +135,9 @@ namespace HomemadeFood.Api.Controllers
                     "Customer yetkisi doğrulandı."));
         }
 
-        [Authorize(Roles = UserRoles.Producer)]
+        [Authorize(
+    Policy =
+        AuthorizationPolicies.ApprovedProducer)]
         [HttpGet("producer-area")]
         public IActionResult ProducerArea()
         {
@@ -138,10 +145,9 @@ namespace HomemadeFood.Api.Controllers
                 ApiResponse<object>.Succeed(
                     new
                     {
-                        authorizedRole =
-                            UserRoles.Producer
+                        producerModeAuthorized = true
                     },
-                    "Producer yetkisi doğrulandı."));
+                    "Onaylı üretici yetkisi doğrulandı."));
         }
 
         [Authorize(Roles = UserRoles.Admin)]
