@@ -12,20 +12,25 @@ namespace HomemadeFood.Api.Services
 
         private readonly IUserRepository
             _userRepository;
+        private readonly IOrderRepository
+    _orderRepository;
 
         private readonly IAppClock
             _appClock;
 
         public AdminService(
-            IProducerRepository producerRepository,
-            IUserRepository userRepository,
-            IAppClock appClock)
+     IProducerRepository producerRepository,
+     IUserRepository userRepository,
+     IOrderRepository orderRepository,
+     IAppClock appClock)
         {
             _producerRepository =
                 producerRepository;
 
             _userRepository =
                 userRepository;
+            _orderRepository =
+    orderRepository;
 
             _appClock =
                 appClock;
@@ -290,6 +295,257 @@ namespace HomemadeFood.Api.Services
 
             return true;
         }
+        public async Task<
+    List<AdminOrderListItemResponse>>
+    GetOrdersAsync(
+        string? status,
+        int? customerId,
+        int? producerProfileId,
+        string? search,
+        DateOnly? dateFrom,
+        DateOnly? dateTo)
+        {
+            string? normalizedStatus =
+                null;
+
+            if (!string.IsNullOrWhiteSpace(status))
+            {
+                normalizedStatus =
+                    NormalizeOrderStatus(status);
+
+                if (normalizedStatus == null)
+                {
+                    return new List<
+                        AdminOrderListItemResponse>();
+                }
+            }
+
+            var normalizedSearch =
+                string.IsNullOrWhiteSpace(search)
+                    ? null
+                    : search.Trim();
+
+            DateTime? normalizedDateFrom =
+                null;
+
+            if (dateFrom.HasValue)
+            {
+                normalizedDateFrom =
+                    DateTime.SpecifyKind(
+                        dateFrom.Value.ToDateTime(
+                            TimeOnly.MinValue),
+
+                        DateTimeKind.Utc);
+            }
+
+            DateTime? normalizedDateToExclusive =
+                null;
+
+            if (dateTo.HasValue)
+            {
+                normalizedDateToExclusive =
+                    DateTime.SpecifyKind(
+                        dateTo.Value
+                            .AddDays(1)
+                            .ToDateTime(
+                                TimeOnly.MinValue),
+
+                        DateTimeKind.Utc);
+            }
+
+            var orders =
+                await _orderRepository
+                    .GetForAdminAsync(
+                        normalizedStatus,
+                        customerId,
+                        producerProfileId,
+                        normalizedSearch,
+                        normalizedDateFrom,
+                        normalizedDateToExclusive);
+
+            return orders
+                .Select(MapOrderListItem)
+                .ToList();
+        }
+
+        public async Task<AdminOrderDetailResponse?>
+            GetOrderByIdAsync(
+                int orderId)
+        {
+            if (orderId <= 0)
+            {
+                return null;
+            }
+
+            var order =
+                await _orderRepository
+                    .GetByIdForAdminAsync(
+                        orderId);
+
+            if (order == null)
+            {
+                return null;
+            }
+
+            return MapOrderDetail(order);
+        }
+        private static AdminOrderListItemResponse
+    MapOrderListItem(
+        Order order)
+        {
+            return new AdminOrderListItemResponse
+            {
+                OrderId =
+                    order.Id,
+
+                CustomerId =
+                    order.CustomerId,
+
+                CustomerFullName =
+                    order.Customer.FullName,
+
+                CustomerEmail =
+                    order.Customer.Email,
+
+                ProducerProfileId =
+                    order.ProducerProfileId,
+
+                BusinessName =
+                    order.ProducerProfile
+                        .BusinessName,
+
+                Status =
+                    order.Status,
+
+                PaymentMethod =
+                    order.PaymentMethod,
+
+                TotalPrice =
+                    order.TotalPrice,
+
+                ItemCount =
+                    order.OrderItems.Count,
+
+                TotalQuantity =
+                    order.OrderItems
+                        .Sum(item =>
+                            item.Quantity),
+
+                RecommendationSearchId =
+                    order.RecommendationSearchId,
+
+                SuitabilityScore =
+                    order.SuitabilityScore,
+
+                CreatedAt =
+                    order.CreatedAt,
+
+                StatusUpdatedAt =
+                    order.StatusUpdatedAt
+            };
+        }
+
+        private static AdminOrderDetailResponse
+            MapOrderDetail(
+                Order order)
+        {
+            return new AdminOrderDetailResponse
+            {
+                OrderId =
+                    order.Id,
+
+                CustomerId =
+                    order.CustomerId,
+
+                CustomerFullName =
+                    order.Customer.FullName,
+
+                CustomerEmail =
+                    order.Customer.Email,
+
+                CustomerPhone =
+                    order.Customer.Phone,
+
+                ProducerProfileId =
+                    order.ProducerProfileId,
+
+                BusinessName =
+                    order.ProducerProfile
+                        .BusinessName,
+
+                Status =
+                    order.Status,
+
+                StatusVersion =
+                    order.StatusVersion,
+
+                PaymentMethod =
+                    order.PaymentMethod,
+
+                TotalPrice =
+                    order.TotalPrice,
+
+                DeliveryAddressTitle =
+                    order.DeliveryAddressTitle,
+
+                DeliveryAddress =
+                    order.DeliveryAddress,
+
+                DeliveryLatitude =
+                    order.DeliveryLatitude,
+
+                DeliveryLongitude =
+                    order.DeliveryLongitude,
+
+                CustomerNote =
+                    order.CustomerNote,
+
+                RecommendationSearchId =
+                    order.RecommendationSearchId,
+
+                SuitabilityScore =
+                    order.SuitabilityScore,
+
+                CreatedAt =
+                    order.CreatedAt,
+
+                StatusUpdatedAt =
+                    order.StatusUpdatedAt,
+
+                Items =
+                    order.OrderItems
+                        .OrderBy(item =>
+                            item.Id)
+                        .Select(MapOrderItem)
+                        .ToList()
+            };
+        }
+
+        private static AdminOrderItemResponse
+            MapOrderItem(
+                OrderItem item)
+        {
+            return new AdminOrderItemResponse
+            {
+                OrderItemId =
+                    item.Id,
+
+                FoodId =
+                    item.FoodId,
+
+                FoodName =
+                    item.FoodName,
+
+                Quantity =
+                    item.Quantity,
+
+                UnitPrice =
+                    item.UnitPrice,
+
+                TotalPrice =
+                    item.TotalPrice
+            };
+        }
 
         private static
             AdminProducerApplicationResponse
@@ -550,6 +806,34 @@ namespace HomemadeFood.Api.Services
             }
 
             return null;
+        }
+        private static string?
+    NormalizeOrderStatus(
+        string status)
+        {
+            var normalizedValue =
+                status.Trim();
+
+            var allowedStatuses =
+                new[]
+                {
+            OrderStatuses.Pending,
+            OrderStatuses.Accepted,
+            OrderStatuses.Preparing,
+            OrderStatuses.Ready,
+            OrderStatuses.OutForDelivery,
+            OrderStatuses.Delivered,
+            OrderStatuses.Rejected,
+            OrderStatuses.Cancelled
+                };
+
+            return allowedStatuses
+                .FirstOrDefault(
+                    allowedStatus =>
+                        allowedStatus.Equals(
+                            normalizedValue,
+                            StringComparison
+                                .OrdinalIgnoreCase));
         }
     }
 }
