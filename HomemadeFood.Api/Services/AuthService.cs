@@ -14,10 +14,37 @@ namespace HomemadeFood.Api.Services
         private readonly IJwtTokenGenerator
             _jwtTokenGenerator;
 
+        private readonly IAppClock
+            _appClock;
+
+        private readonly
+            IVerificationChallengeService
+            _verificationChallengeService;
+
+        private readonly
+            IEmailSender
+            _emailSender;
+
+        private const int MaxFailedLoginAttempts =
+            5;
+
+        private static readonly TimeSpan
+            LoginLockoutDuration =
+                TimeSpan.FromMinutes(15);
+
+        private static readonly string
+            DummyPasswordHash =
+                BCrypt.Net.BCrypt.HashPassword(
+                    "HomemadeFood-Dummy-Login-Password",
+                    12);
+
         public AuthService(
-    IUserRepository userRepository,
-    IJwtTokenGenerator jwtTokenGenerator,
-    IAppClock appClock)
+            IUserRepository userRepository,
+            IJwtTokenGenerator jwtTokenGenerator,
+            IAppClock appClock,
+            IVerificationChallengeService
+                verificationChallengeService,
+            IEmailSender emailSender)
         {
             _userRepository =
                 userRepository;
@@ -27,6 +54,37 @@ namespace HomemadeFood.Api.Services
 
             _appClock =
                 appClock;
+
+            _verificationChallengeService =
+                verificationChallengeService;
+
+            _emailSender =
+                emailSender;
+        }
+
+        public async Task
+            ResendEmailVerificationAsync(
+                ResendEmailVerificationRequest request)
+        {
+            var normalizedEmail =
+                request.Email
+                    .Trim()
+                    .ToLowerInvariant();
+
+            var verificationCode =
+                await _verificationChallengeService
+                    .PrepareEmailVerificationResendAsync(
+                        normalizedEmail);
+
+            if (verificationCode == null)
+            {
+                return;
+            }
+
+            await _emailSender
+                .SendEmailVerificationCodeAsync(
+                    normalizedEmail,
+                    verificationCode);
         }
 
         public async Task<bool> RegisterAsync(
@@ -62,54 +120,57 @@ namespace HomemadeFood.Api.Services
                                 request.Password),
 
                     Phone =
-                        request.Phone.Trim(),
+                        string.Empty,
 
-                    /*
-                     * Normal kayıt işlemi hiçbir
-                     * zaman Producer veya Admin
-                     * rolü oluşturamaz.
-                     */
                     Role =
                         UserRoles.Customer,
 
                     IsActive =
                         true,
 
+                    IsEmailVerified =
+                        false,
+
+                    EmailVerifiedAt =
+                        null,
+
                     CreatedAt =
-    _appClock.UtcNow
+                        _appClock.UtcNow
                 };
 
             await _userRepository
                 .AddAsync(user);
 
+            var verificationCode =
+                await _verificationChallengeService
+                    .PrepareEmailVerificationAsync(
+                        user);
+
             await _userRepository
                 .SaveChangesAsync();
 
+            await _emailSender
+                .SendEmailVerificationCodeAsync(
+                    normalizedEmail,
+                    verificationCode);
+
             return true;
         }
-        private readonly IAppClock _appClock;
 
-        private const int MaxFailedLoginAttempts =
-            5;
+        public async Task<bool>
+            VerifyEmailAsync(
+                VerifyEmailRequest request)
+        {
+            return await
+                _verificationChallengeService
+                    .VerifyEmailAsync(
+                        request.Email,
+                        request.Code);
+        }
 
-        private static readonly TimeSpan
-            LoginLockoutDuration =
-                TimeSpan.FromMinutes(15);
-
-        /*
-         * Sistemde bulunmayan e-postalarda da BCrypt
-         * çalıştırarak cevap süresi farkını azaltır.
-         *
-         * Bu gerçek bir kullanıcı şifresi değildir.
-         */
-        private static readonly string
-            DummyPasswordHash =
-                BCrypt.Net.BCrypt.HashPassword(
-                    "HomemadeFood-Dummy-Login-Password",
-                    12);
-
-        public async Task<LoginResponse?> LoginAsync(
-     LoginRequest request)
+        public async Task<LoginServiceResult>
+            LoginAsync(
+                LoginRequest request)
         {
             var normalizedEmail =
                 request.Email
@@ -121,12 +182,6 @@ namespace HomemadeFood.Api.Services
                     .GetByEmailAsync(
                         normalizedEmail);
 
-            /*
-             * Kullanıcı bulunmasa bile BCrypt çalıştırılır.
-             * Böylece "hesap yok" ve "şifre yanlış"
-             * durumlarının işlem süreleri birbirine
-             * daha yakın tutulur.
-             */
             var passwordHashToVerify =
                 user?.PasswordHash ??
                 DummyPasswordHash;
@@ -139,19 +194,16 @@ namespace HomemadeFood.Api.Services
             var now =
                 _appClock.UtcNow;
 
-            /*
-             * Kullanıcı yok, hesap pasif veya hesap
-             * geçici olarak kilitliyse aynı genel
-             * başarısızlık sonucu döndürülür.
-             */
             if (user == null)
             {
-                return null;
+                return LoginServiceResult
+                    .InvalidCredentials();
             }
 
             if (!user.IsActive)
             {
-                return null;
+                return LoginServiceResult
+                    .InvalidCredentials();
             }
 
             if (
@@ -159,14 +211,10 @@ namespace HomemadeFood.Api.Services
                 user.LockoutEndAt.Value > now
             )
             {
-                return null;
+                return LoginServiceResult
+                    .InvalidCredentials();
             }
 
-            /*
-             * Önceki kilit süresi tamamlandıysa
-             * sayaç temizlenir ve yeni denemeler
-             * sıfırdan başlatılır.
-             */
             if (
                 user.LockoutEndAt.HasValue &&
                 user.LockoutEndAt.Value <= now
@@ -199,13 +247,31 @@ namespace HomemadeFood.Api.Services
                 await _userRepository
                     .SaveChangesAsync();
 
-                return null;
+                return LoginServiceResult
+                    .InvalidCredentials();
             }
 
             /*
-             * Başarılı girişte başarısız deneme
-             * sayacı ve geçici kilit temizlenir.
+             * E-posta doğrulanmadı bilgisi yalnızca
+             * şifre doğruysa döndürülür. Bu nedenle
+             * hesap enumeration riski azaltılır.
              */
+            if (!user.IsEmailVerified)
+            {
+                user.FailedLoginCount =
+                    0;
+
+                user.LockoutEndAt =
+                    null;
+
+                await _userRepository
+                    .SaveChangesAsync();
+
+                return LoginServiceResult
+                    .EmailNotVerified(
+                        user.Email);
+            }
+
             user.FailedLoginCount =
                 0;
 
@@ -222,33 +288,39 @@ namespace HomemadeFood.Api.Services
                 _jwtTokenGenerator
                     .GenerateToken(user);
 
-            return new LoginResponse
-            {
-                UserId =
-                    user.Id,
+            var response =
+                new LoginResponse
+                {
+                    UserId =
+                        user.Id,
 
-                FullName =
-                    user.FullName,
+                    FullName =
+                        user.FullName,
 
-                Email =
-                    user.Email,
+                    Email =
+                        user.Email,
 
-                Role =
-                    user.Role,
+                    Role =
+                        user.Role,
 
-                CanUseProducerMode =
-                    CanUseProducerMode(user),
+                    CanUseProducerMode =
+                        CanUseProducerMode(
+                            user),
 
-                ProducerProfileId =
-                    user.ProducerProfile?.Id,
+                    ProducerProfileId =
+                        user.ProducerProfile?.Id,
 
-                ProducerVerificationStatus =
-                    user.ProducerProfile?
-                        .VerificationStatus,
+                    ProducerVerificationStatus =
+                        user.ProducerProfile?
+                            .VerificationStatus,
 
-                Token =
-                    token
-            };
+                    Token =
+                        token
+                };
+
+            return LoginServiceResult
+                .Success(
+                    response);
         }
 
         public async Task<AuthProfileResponse?>
@@ -262,10 +334,13 @@ namespace HomemadeFood.Api.Services
 
             var user =
                 await _userRepository
-                    .GetByIdAsync(userId);
+                    .GetByIdAsync(
+                        userId);
 
-            if (user == null ||
-                !user.IsActive)
+            if (
+                user == null ||
+                !user.IsActive
+            )
             {
                 return null;
             }
@@ -285,7 +360,8 @@ namespace HomemadeFood.Api.Services
                     user.Role,
 
                 CanUseProducerMode =
-                    CanUseProducerMode(user),
+                    CanUseProducerMode(
+                        user),
 
                 ProducerProfileId =
                     user.ProducerProfile?.Id,
@@ -314,10 +390,8 @@ namespace HomemadeFood.Api.Services
                 string.Equals(
                     user.ProducerProfile
                         .VerificationStatus,
-
                     ProducerVerificationStatuses
                         .Approved,
-
                     StringComparison.Ordinal);
         }
     }

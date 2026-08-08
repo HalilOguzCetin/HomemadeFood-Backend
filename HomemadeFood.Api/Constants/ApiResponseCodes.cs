@@ -104,5 +104,17 @@
 
         public const string RecommendationAlreadySelected =
             "RECOMMENDATION_ALREADY_SELECTED";
+        public const string
+    EmailVerificationFailed =
+        "EMAIL_VERIFICATION_FAILED";
+
+        public const string
+            EmailVerified =
+                "EMAIL_VERIFIED";
+        public const string
+    EmailVerificationCodeRequested =
+        "EMAIL_VERIFICATION_CODE_REQUESTED";
+        public const string EmailNotVerified =
+    "EMAIL_NOT_VERIFIED";
     }
 }

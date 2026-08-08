@@ -13,12 +13,14 @@ namespace HomemadeFood.Api.Controllers
     [Route("api/[controller]")]
     public class AuthController : ControllerBase
     {
-        private readonly IAuthService _authService;
+        private readonly IAuthService
+            _authService;
 
         public AuthController(
             IAuthService authService)
         {
-            _authService = authService;
+            _authService =
+                authService;
         }
 
         [HttpGet("test")]
@@ -28,18 +30,22 @@ namespace HomemadeFood.Api.Controllers
                 ApiResponse<object>.Succeed(
                     new
                     {
-                        apiStatus = "Running"
+                        apiStatus =
+                            "Running"
                     },
                     "Auth API çalışıyor."));
         }
 
         [HttpPost("register")]
-        public async Task<IActionResult> Register(
-            [FromBody] RegisterRequest request)
+        public async Task<IActionResult>
+            Register(
+                [FromBody]
+                RegisterRequest request)
         {
             var result =
-                await _authService.RegisterAsync(
-                    request);
+                await _authService
+                    .RegisterAsync(
+                        request);
 
             if (!result)
             {
@@ -47,53 +53,169 @@ namespace HomemadeFood.Api.Controllers
                     ApiResponse<object>.Fail(
                         ApiResponseCodes
                             .RegistrationFailed,
+
                         "Kayıt işlemi başarısız oldu. E-posta adresi daha önce kullanılmış olabilir."));
             }
 
             return StatusCode(
-                StatusCodes.Status201Created,
+                StatusCodes
+                    .Status201Created,
+
                 ApiResponse<object>.Succeed(
                     new
                     {
-                        email = request.Email
-                            .Trim()
-                            .ToLowerInvariant()
+                        email =
+                            request.Email
+                                .Trim()
+                                .ToLowerInvariant()
                     },
+
                     "Kullanıcı başarıyla kaydedildi.",
-                    ApiResponseCodes.Created));
+
+                    ApiResponseCodes
+                        .Created));
         }
 
         [EnableRateLimiting(
-    RateLimitPolicies.Login)]
-        [HttpPost("login")]
-        public async Task<IActionResult> Login(
-            [FromBody] LoginRequest request)
+            RateLimitPolicies
+                .EmailVerificationResend)]
+        [HttpPost(
+            "resend-email-verification")]
+        public async Task<IActionResult>
+            ResendEmailVerification(
+                [FromBody]
+                ResendEmailVerificationRequest request)
         {
-            var result =
-                await _authService.LoginAsync(
+            await _authService
+                .ResendEmailVerificationAsync(
                     request);
 
-            if (result == null)
+            return Ok(
+                ApiResponse<object>.Succeed(
+                    new
+                    {
+                        email =
+                            request.Email
+                                .Trim()
+                                .ToLowerInvariant()
+                    },
+
+                    "E-posta adresi uygunsa yeni bir doğrulama kodu gönderildi.",
+
+                    ApiResponseCodes
+                        .EmailVerificationCodeRequested));
+        }
+
+        [HttpPost("verify-email")]
+        public async Task<IActionResult>
+            VerifyEmail(
+                [FromBody]
+                VerifyEmailRequest request)
+        {
+            var result =
+                await _authService
+                    .VerifyEmailAsync(
+                        request);
+
+            if (!result)
             {
-                return Unauthorized(
+                return BadRequest(
                     ApiResponse<object>.Fail(
-                        ApiResponseCodes.LoginFailed,
-                        "E-posta veya şifre hatalı."));
+                        ApiResponseCodes
+                            .EmailVerificationFailed,
+
+                        "Doğrulama kodu geçersiz, süresi dolmuş veya kullanılamıyor."));
             }
 
             return Ok(
                 ApiResponse<object>.Succeed(
-                    result,
+                    new
+                    {
+                        email =
+                            request.Email
+                                .Trim()
+                                .ToLowerInvariant()
+                    },
+
+                    "E-posta adresi başarıyla doğrulandı.",
+
+                    ApiResponseCodes
+                        .EmailVerified));
+        }
+
+        [EnableRateLimiting(
+            RateLimitPolicies.Login)]
+        [HttpPost("login")]
+        public async Task<IActionResult>
+            Login(
+                [FromBody]
+                LoginRequest request)
+        {
+            var result =
+                await _authService
+                    .LoginAsync(
+                        request);
+
+            if (
+                result.Status ==
+                LoginResultStatus
+                    .InvalidCredentials
+            )
+            {
+                return Unauthorized(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes
+                            .LoginFailed,
+
+                        "E-posta veya şifre hatalı."));
+            }
+
+            if (
+                result.Status ==
+                LoginResultStatus
+                    .EmailNotVerified
+            )
+            {
+                return StatusCode(
+                    StatusCodes
+                        .Status403Forbidden,
+
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes
+                            .EmailNotVerified,
+
+                        "E-posta adresinizi doğrulamanız gerekiyor."));
+            }
+
+            if (
+                result.Status !=
+                    LoginResultStatus.Success ||
+                result.Response == null
+            )
+            {
+                return Unauthorized(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes
+                            .LoginFailed,
+
+                        "E-posta veya şifre hatalı."));
+            }
+
+            return Ok(
+                ApiResponse<LoginResponse>.Succeed(
+                    result.Response,
                     "Giriş başarılı."));
         }
 
         [Authorize]
         [HttpGet("profile")]
-        public async Task<IActionResult> Profile()
+        public async Task<IActionResult>
+            Profile()
         {
             var userIdValue =
                 User.FindFirstValue(
-                    ClaimTypes.NameIdentifier);
+                    ClaimTypes
+                        .NameIdentifier);
 
             if (!int.TryParse(
                     userIdValue,
@@ -101,19 +223,24 @@ namespace HomemadeFood.Api.Controllers
             {
                 return Unauthorized(
                     ApiResponse<object>.Fail(
-                        ApiResponseCodes.Unauthorized,
+                        ApiResponseCodes
+                            .Unauthorized,
+
                         "Kullanıcı bilgisi alınamadı."));
             }
 
             var profile =
                 await _authService
-                    .GetProfileAsync(userId);
+                    .GetProfileAsync(
+                        userId);
 
             if (profile == null)
             {
                 return Unauthorized(
                     ApiResponse<object>.Fail(
-                        ApiResponseCodes.Unauthorized,
+                        ApiResponseCodes
+                            .Unauthorized,
+
                         "Kullanıcı bulunamadı veya hesap pasif."));
             }
 
@@ -121,12 +248,16 @@ namespace HomemadeFood.Api.Controllers
                 ApiResponse<AuthProfileResponse>
                     .Succeed(
                         profile,
+
                         "Kullanıcı profili başarıyla getirildi."));
         }
 
-        [Authorize(Roles = UserRoles.Customer)]
+        [Authorize(
+            Roles =
+                UserRoles.Customer)]
         [HttpGet("customer-area")]
-        public IActionResult CustomerArea()
+        public IActionResult
+            CustomerArea()
         {
             return Ok(
                 ApiResponse<object>.Succeed(
@@ -135,27 +266,35 @@ namespace HomemadeFood.Api.Controllers
                         authorizedRole =
                             UserRoles.Customer
                     },
+
                     "Customer yetkisi doğrulandı."));
         }
 
         [Authorize(
-    Policy =
-        AuthorizationPolicies.ApprovedProducer)]
+            Policy =
+                AuthorizationPolicies
+                    .ApprovedProducer)]
         [HttpGet("producer-area")]
-        public IActionResult ProducerArea()
+        public IActionResult
+            ProducerArea()
         {
             return Ok(
                 ApiResponse<object>.Succeed(
                     new
                     {
-                        producerModeAuthorized = true
+                        producerModeAuthorized =
+                            true
                     },
+
                     "Onaylı üretici yetkisi doğrulandı."));
         }
 
-        [Authorize(Roles = UserRoles.Admin)]
+        [Authorize(
+            Roles =
+                UserRoles.Admin)]
         [HttpGet("admin-area")]
-        public IActionResult AdminArea()
+        public IActionResult
+            AdminArea()
         {
             return Ok(
                 ApiResponse<object>.Succeed(
@@ -164,6 +303,7 @@ namespace HomemadeFood.Api.Controllers
                         authorizedRole =
                             UserRoles.Admin
                     },
+
                     "Admin yetkisi doğrulandı."));
         }
     }
