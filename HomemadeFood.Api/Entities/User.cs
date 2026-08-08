@@ -22,6 +22,24 @@
         public bool IsActive { get; set; } =
             true;
 
+        /*
+         * Yeni kayıtlar e-posta doğrulanmadan
+         * başlar. Mevcut hesapları migration
+         * sırasında doğrulanmış kabul edeceğiz.
+         */
+        public bool IsEmailVerified { get; set; } =
+            false;
+
+        /*
+         * E-posta doğrulamasının tamamlandığı
+         * UTC zaman. Henüz doğrulanmadıysa null.
+         */
+        public DateTime? EmailVerifiedAt
+        {
+            get;
+            set;
+        }
+
         public DateTime CreatedAt { get; set; } =
             DateTime.UtcNow;
 
@@ -58,6 +76,13 @@
             get;
             set;
         }
+
+        public ICollection<VerificationChallenge>
+            VerificationChallenges
+        {
+            get;
+            set;
+        } = new List<VerificationChallenge>();
 
         public ICollection<Address> Addresses
         {

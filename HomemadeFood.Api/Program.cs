@@ -64,6 +64,42 @@ if (string.IsNullOrWhiteSpace(jwtAudience))
         "Jwt:Audience deðeri bulunamadý.");
 }
 
+// ---------------------------------------------------------
+// DOÐRULAMA KODU HASH ANAHTARI
+// ---------------------------------------------------------
+
+var verificationHashKey =
+    builder.Configuration[
+        "Verification:HashKey"];
+
+if (string.IsNullOrWhiteSpace(
+        verificationHashKey))
+{
+    throw new InvalidOperationException(
+        "Verification:HashKey deðeri bulunamadý. " +
+        "Anahtarý User Secrets içine ekleyin.");
+}
+
+byte[] verificationHashKeyBytes;
+
+try
+{
+    verificationHashKeyBytes =
+        Convert.FromBase64String(
+            verificationHashKey);
+}
+catch (FormatException)
+{
+    throw new InvalidOperationException(
+        "Verification:HashKey geçerli Base64 biçiminde olmalýdýr.");
+}
+
+if (verificationHashKeyBytes.Length < 32)
+{
+    throw new InvalidOperationException(
+        "Verification:HashKey en az 32 byte olmalýdýr.");
+}
+
 var jwtSigningKey =
     new SymmetricSecurityKey(
         Encoding.UTF8.GetBytes(jwtKey));
@@ -144,6 +180,20 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     IUserRepository,
     UserRepository>();
+
+builder.Services.AddScoped<
+    IVerificationChallengeRepository,
+    VerificationChallengeRepository>();
+
+builder.Services.AddScoped<
+    IVerificationChallengeService,
+    VerificationChallengeService>();
+
+builder.Services.AddSingleton<
+    IVerificationCodeService>(
+        _ =>
+            new VerificationCodeService(
+                verificationHashKeyBytes));
 
 builder.Services.AddScoped<
     IJwtTokenGenerator,
@@ -239,6 +289,9 @@ builder.Services.AddScoped<
 builder.Services.AddSingleton<
     IAppClock,
     AppClock>();
+builder.Services.AddSingleton<
+    IEmailSender,
+    DevelopmentEmailSender>();
 
 // ---------------------------------------------------------
 // GLOBAL HATA YÖNETÝMÝ
@@ -549,6 +602,39 @@ builder.Services.AddRateLimiter(
                                 AutoReplenishment =
                                     true
                             }));
+        options.AddPolicy(
+    RateLimitPolicies
+        .EmailVerificationResend,
+
+    httpContext =>
+        RateLimitPartition
+            .GetFixedWindowLimiter(
+                partitionKey:
+                    httpContext.Connection
+                        .RemoteIpAddress
+                        ?.ToString()
+                    ?? "unknown",
+
+                factory: _ =>
+                    new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit =
+                            5,
+
+                        Window =
+                            TimeSpan
+                                .FromMinutes(10),
+
+                        QueueLimit =
+                            0,
+
+                        QueueProcessingOrder =
+                            QueueProcessingOrder
+                                .OldestFirst,
+
+                        AutoReplenishment =
+                            true
+                    }));
 
         options.OnRejected =
             async (

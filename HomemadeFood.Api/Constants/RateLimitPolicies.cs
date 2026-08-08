@@ -4,5 +4,8 @@
     {
         public const string Login =
             "LoginRateLimit";
+        public const string
+    EmailVerificationResend =
+        "email-verification-resend";
     }
 }

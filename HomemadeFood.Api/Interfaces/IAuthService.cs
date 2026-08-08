@@ -7,10 +7,16 @@ namespace HomemadeFood.Api.Interfaces
         Task<bool> RegisterAsync(
             RegisterRequest request);
 
-        Task<LoginResponse?> LoginAsync(
+        Task<LoginServiceResult> LoginAsync(
             LoginRequest request);
 
         Task<AuthProfileResponse?> GetProfileAsync(
             int userId);
+
+        Task<bool> VerifyEmailAsync(
+            VerifyEmailRequest request);
+
+        Task ResendEmailVerificationAsync(
+            ResendEmailVerificationRequest request);
     }
 }

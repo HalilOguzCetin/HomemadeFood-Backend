@@ -13,6 +13,10 @@ namespace HomemadeFood.Api.Data
 
         public DbSet<User> Users { get; set; }
 
+        public DbSet<VerificationChallenge>
+            VerificationChallenges
+        { get; set; }
+
         public DbSet<ProducerProfile>
             ProducerProfiles
         { get; set; }
@@ -77,10 +81,48 @@ namespace HomemadeFood.Api.Data
                     .HasMaxLength(30)
                     .IsRequired();
 
+                entity.Property(x => x.IsEmailVerified)
+                    .IsRequired()
+                    .HasDefaultValue(false);
+
                 entity.HasOne(x => x.ProducerProfile)
                     .WithOne(x => x.User)
                     .HasForeignKey<ProducerProfile>(
                         x => x.UserId);
+            });
+
+            // -------------------------------------------------
+            // VERIFICATION CHALLENGE
+            // -------------------------------------------------
+
+            modelBuilder.Entity<VerificationChallenge>(entity =>
+            {
+                entity.Property(x => x.Type)
+                    .HasMaxLength(40)
+                    .IsRequired();
+
+                entity.Property(x => x.TargetHash)
+                    .HasMaxLength(128)
+                    .IsRequired();
+
+                entity.Property(x => x.SecretHash)
+                    .HasMaxLength(128)
+                    .IsRequired();
+
+                entity.HasOne(x => x.User)
+                    .WithMany(x =>
+                        x.VerificationChallenges)
+                    .HasForeignKey(x => x.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(x => new
+                {
+                    x.UserId,
+                    x.Type,
+                    x.UsedAt
+                });
+
+                entity.HasIndex(x => x.ExpiresAt);
             });
 
             // -------------------------------------------------
