@@ -37,8 +37,9 @@
 
         public const string ReviewDeletionFailed =
             "REVIEW_DELETION_FAILED";
+
         public const string CartItemAdditionFailed =
-    "CART_ITEM_ADDITION_FAILED";
+            "CART_ITEM_ADDITION_FAILED";
 
         public const string CartItemUpdateFailed =
             "CART_ITEM_UPDATE_FAILED";
@@ -48,13 +49,15 @@
 
         public const string CartClearFailed =
             "CART_CLEAR_FAILED";
+
         public const string FavoriteAdditionFailed =
-    "FAVORITE_ADDITION_FAILED";
+            "FAVORITE_ADDITION_FAILED";
 
         public const string FavoriteRemovalFailed =
             "FAVORITE_REMOVAL_FAILED";
+
         public const string FoodNotFound =
-    "FOOD_NOT_FOUND";
+            "FOOD_NOT_FOUND";
 
         public const string FoodCreationFailed =
             "FOOD_CREATION_FAILED";
@@ -64,19 +67,24 @@
 
         public const string FoodDeletionFailed =
             "FOOD_DELETION_FAILED";
+
         public const string RegistrationFailed =
-    "REGISTRATION_FAILED";
+            "REGISTRATION_FAILED";
 
         public const string LoginFailed =
             "LOGIN_FAILED";
+
         public const string ProducerApplicationFailed =
-    "PRODUCER_APPLICATION_FAILED";
+            "PRODUCER_APPLICATION_FAILED";
+
         public const string ProducerApprovalFailed =
-    "PRODUCER_APPROVAL_FAILED";
+            "PRODUCER_APPROVAL_FAILED";
+
         public const string ProducerRejectionFailed =
-    "PRODUCER_REJECTION_FAILED";
+            "PRODUCER_REJECTION_FAILED";
+
         public const string OrderAcceptanceFailed =
-    "ORDER_ACCEPTANCE_FAILED";
+            "ORDER_ACCEPTANCE_FAILED";
 
         public const string OrderRejectionFailed =
             "ORDER_REJECTION_FAILED";
@@ -92,29 +100,41 @@
 
         public const string OrderDeliveryCompletionFailed =
             "ORDER_DELIVERY_COMPLETION_FAILED";
+
         public const string InternalServerError =
-    "INTERNAL_SERVER_ERROR";
+            "INTERNAL_SERVER_ERROR";
+
         public const string ValidationError =
-    "VALIDATION_ERROR";
+            "VALIDATION_ERROR";
+
         public const string RecommendationSearchNotFound =
-    "RECOMMENDATION_SEARCH_NOT_FOUND";
+            "RECOMMENDATION_SEARCH_NOT_FOUND";
 
         public const string RecommendationCandidateNotFound =
             "RECOMMENDATION_CANDIDATE_NOT_FOUND";
 
         public const string RecommendationAlreadySelected =
             "RECOMMENDATION_ALREADY_SELECTED";
-        public const string
-    EmailVerificationFailed =
-        "EMAIL_VERIFICATION_FAILED";
 
-        public const string
-            EmailVerified =
-                "EMAIL_VERIFIED";
-        public const string
-    EmailVerificationCodeRequested =
-        "EMAIL_VERIFICATION_CODE_REQUESTED";
+        public const string EmailVerificationFailed =
+            "EMAIL_VERIFICATION_FAILED";
+
+        public const string EmailVerified =
+            "EMAIL_VERIFIED";
+
+        public const string EmailVerificationCodeRequested =
+            "EMAIL_VERIFICATION_CODE_REQUESTED";
+
         public const string EmailNotVerified =
-    "EMAIL_NOT_VERIFIED";
+            "EMAIL_NOT_VERIFIED";
+
+        public const string PasswordResetCodeRequested =
+            "PASSWORD_RESET_CODE_REQUESTED";
+
+        public const string PasswordResetSuccess =
+            "PASSWORD_RESET_SUCCESS";
+
+        public const string PasswordResetFailed =
+            "PASSWORD_RESET_FAILED";
     }
 }

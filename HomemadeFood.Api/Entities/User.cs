@@ -39,6 +39,14 @@
             get;
             set;
         }
+        /*
+ * Kullanıcının oturum sürümü.
+ *
+ * Şifre sıfırlama gibi kritik güvenlik
+ * işlemlerinde artırılır. Böylece daha önce
+ * oluşturulan JWT'ler geçersiz hale gelir.
+ */
+        public int TokenVersion { get; set; } = 0;
 
         public DateTime CreatedAt { get; set; } =
             DateTime.UtcNow;

@@ -12,8 +12,32 @@ namespace HomemadeFood.Api.Interfaces
             VerifyEmailAsync(
                 string email,
                 string code);
+
         Task<string?>
-    PrepareEmailVerificationResendAsync(
-        string email);
+            PrepareEmailVerificationResendAsync(
+                string email);
+
+        /*
+         * Şifre sıfırlama isteğinde yeni bir
+         * PasswordReset challenge oluşturur.
+         *
+         * Kullanıcı yoksa, pasifse, e-posta
+         * doğrulanmamışsa veya cooldown devam
+         * ediyorsa null döner.
+         */
+        Task<string?>
+            PreparePasswordResetAsync(
+                string email);
+
+        /*
+         * Kod doğruysa yeni şifreyi kaydeder ve
+         * PasswordReset challenge'ını tek kullanımlık
+         * olacak şekilde tüketir.
+         */
+        Task<bool>
+            ResetPasswordAsync(
+                string email,
+                string code,
+                string newPassword);
     }
 }

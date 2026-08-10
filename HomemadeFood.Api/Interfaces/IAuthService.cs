@@ -18,5 +18,11 @@ namespace HomemadeFood.Api.Interfaces
 
         Task ResendEmailVerificationAsync(
             ResendEmailVerificationRequest request);
+
+        Task ForgotPasswordAsync(
+            ForgotPasswordRequest request);
+
+        Task<bool> ResetPasswordAsync(
+            ResetPasswordRequest request);
     }
 }

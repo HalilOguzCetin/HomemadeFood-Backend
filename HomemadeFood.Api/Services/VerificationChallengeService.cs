@@ -1,4 +1,5 @@
-﻿using HomemadeFood.Api.Constants;
+﻿using BCrypt.Net;
+using HomemadeFood.Api.Constants;
 using HomemadeFood.Api.Entities;
 using HomemadeFood.Api.Interfaces;
 
@@ -11,8 +12,24 @@ namespace HomemadeFood.Api.Services
             EmailVerificationLifetime =
                 TimeSpan.FromMinutes(10);
 
+        private static readonly TimeSpan
+            PasswordResetLifetime =
+                TimeSpan.FromMinutes(10);
+
+        private static readonly TimeSpan
+            EmailVerificationResendCooldown =
+                TimeSpan.FromMinutes(1);
+
+        private static readonly TimeSpan
+            PasswordResetResendCooldown =
+                TimeSpan.FromMinutes(1);
+
         private const int
             MaxEmailVerificationAttempts =
+                5;
+
+        private const int
+            MaxPasswordResetAttempts =
                 5;
 
         private readonly
@@ -30,9 +47,6 @@ namespace HomemadeFood.Api.Services
         private readonly
             IUserRepository
             _userRepository;
-        private static readonly TimeSpan
-    EmailVerificationResendCooldown =
-        TimeSpan.FromMinutes(1);
 
         public VerificationChallengeService(
             IVerificationChallengeRepository
@@ -54,9 +68,10 @@ namespace HomemadeFood.Api.Services
             _userRepository =
                 userRepository;
         }
+
         public async Task<string?>
-    PrepareEmailVerificationResendAsync(
-        string email)
+            PrepareEmailVerificationResendAsync(
+                string email)
         {
             if (string.IsNullOrWhiteSpace(email))
             {
@@ -76,11 +91,6 @@ namespace HomemadeFood.Api.Services
                     .GetByEmailAsync(
                         normalizedEmail);
 
-            /*
-             * Hesap yoksa, pasifse veya zaten
-             * doğrulanmışsa yeni challenge
-             * oluşturulmaz.
-             */
             if (
                 user == null ||
                 !user.IsActive ||
@@ -98,11 +108,6 @@ namespace HomemadeFood.Api.Services
                             .EmailVerification,
                         now);
 
-            /*
-             * Son kodun oluşturulmasından itibaren
-             * en az 60 saniye geçmeden yeni kod
-             * oluşturulamaz.
-             */
             if (
                 currentChallenge != null &&
                 now - currentChallenge.CreatedAt <
@@ -112,10 +117,6 @@ namespace HomemadeFood.Api.Services
                 return null;
             }
 
-            /*
-             * Varsa eski aktif kod artık
-             * kullanılamaz hâle getirilir.
-             */
             await _verificationChallengeRepository
                 .ExpireActiveAsync(
                     user.Id,
@@ -201,12 +202,6 @@ namespace HomemadeFood.Api.Services
             var challenge =
                 new VerificationChallenge
                 {
-                    /*
-                     * User navigation verilerek yeni
-                     * kullanıcı ve challenge aynı
-                     * SaveChanges işlemi içinde
-                     * kaydedilebilir.
-                     */
                     User =
                         user,
 
@@ -219,12 +214,6 @@ namespace HomemadeFood.Api.Services
                             .HashTarget(
                                 user.Email),
 
-                    /*
-                     * Gerçek doğrulama kodu
-                     * veritabanına yazılmaz.
-                     * Yalnızca güvenli hash değeri
-                     * saklanır.
-                     */
                     SecretHash =
                         _verificationCodeService
                             .HashSecret(
@@ -248,10 +237,6 @@ namespace HomemadeFood.Api.Services
                 .AddAsync(
                     challenge);
 
-            /*
-             * Düz kod yalnızca e-posta gönderme
-             * katmanına aktarılmak üzere döndürülür.
-             */
             return verificationCode;
         }
 
@@ -284,11 +269,6 @@ namespace HomemadeFood.Api.Services
                     .GetByEmailAsync(
                         normalizedEmail);
 
-            /*
-             * Kullanıcı bulunamadığında veya hesap
-             * pasif olduğunda ayrıntılı bilgi
-             * dışarı verilmez.
-             */
             if (
                 user == null ||
                 !user.IsActive
@@ -297,10 +277,6 @@ namespace HomemadeFood.Api.Services
                 return false;
             }
 
-            /*
-             * Daha önce doğrulanmış bir adres için
-             * işlem idempotent kabul edilir.
-             */
             if (user.IsEmailVerified)
             {
                 return true;
@@ -314,20 +290,11 @@ namespace HomemadeFood.Api.Services
                             .EmailVerification,
                         now);
 
-            /*
-             * Aktif challenge yoksa kodun süresi
-             * dolmuş, kullanılmış veya hiç
-             * oluşturulmamış olabilir.
-             */
             if (challenge == null)
             {
                 return false;
             }
 
-            /*
-             * Deneme sınırına daha önce ulaşılmışsa
-             * challenge geçersiz hâle getirilir.
-             */
             if (
                 challenge.AttemptCount >=
                 MaxEmailVerificationAttempts
@@ -352,10 +319,6 @@ namespace HomemadeFood.Api.Services
             {
                 challenge.AttemptCount++;
 
-                /*
-                 * Beşinci hatalı denemeden sonra
-                 * challenge hemen geçersiz olur.
-                 */
                 if (
                     challenge.AttemptCount >=
                     MaxEmailVerificationAttempts
@@ -371,18 +334,261 @@ namespace HomemadeFood.Api.Services
                 return false;
             }
 
-            /*
-             * Doğru kod girildi.
-             *
-             * Kullanıcı doğrulanır ve challenge
-             * tek kullanımlık olacak şekilde
-             * işaretlenir.
-             */
             user.IsEmailVerified =
                 true;
 
             user.EmailVerifiedAt =
                 now;
+
+            challenge.UsedAt =
+                now;
+
+            await _verificationChallengeRepository
+                .SaveChangesAsync();
+
+            return true;
+        }
+
+        public async Task<string?>
+            PreparePasswordResetAsync(
+                string email)
+        {
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                return null;
+            }
+
+            var normalizedEmail =
+                email
+                    .Trim()
+                    .ToLowerInvariant();
+
+            var now =
+                _appClock.UtcNow;
+
+            var user =
+                await _userRepository
+                    .GetByEmailAsync(
+                        normalizedEmail);
+
+            /*
+             * Hesabın varlığı, aktiflik durumu veya
+             * e-posta doğrulama durumu dışarıya
+             * açıklanmaz.
+             *
+             * Şifre sıfırlama yalnızca doğrulanmış
+             * e-posta adresine sahip aktif hesaplar
+             * için oluşturulur.
+             */
+            if (
+                user == null ||
+                !user.IsActive ||
+                !user.IsEmailVerified
+            )
+            {
+                return null;
+            }
+
+            var currentChallenge =
+                await _verificationChallengeRepository
+                    .GetLatestActiveAsync(
+                        user.Id,
+                        VerificationChallengeTypes
+                            .PasswordReset,
+                        now);
+
+            /*
+             * 60 saniyelik yeniden gönderme
+             * cooldown'u.
+             */
+            if (
+                currentChallenge != null &&
+                now - currentChallenge.CreatedAt <
+                    PasswordResetResendCooldown
+            )
+            {
+                return null;
+            }
+
+            /*
+             * Yeni kod oluşturulmadan önce eski
+             * aktif PasswordReset challenge'ları
+             * geçersizleştirilir.
+             */
+            await _verificationChallengeRepository
+                .ExpireActiveAsync(
+                    user.Id,
+                    VerificationChallengeTypes
+                        .PasswordReset,
+                    now);
+
+            var resetCode =
+                _verificationCodeService
+                    .GenerateSixDigitCode();
+
+            var challenge =
+                new VerificationChallenge
+                {
+                    UserId =
+                        user.Id,
+
+                    User =
+                        user,
+
+                    Type =
+                        VerificationChallengeTypes
+                            .PasswordReset,
+
+                    TargetHash =
+                        _verificationCodeService
+                            .HashTarget(
+                                user.Email),
+
+                    SecretHash =
+                        _verificationCodeService
+                            .HashSecret(
+                                resetCode),
+
+                    ExpiresAt =
+                        now.Add(
+                            PasswordResetLifetime),
+
+                    UsedAt =
+                        null,
+
+                    AttemptCount =
+                        0,
+
+                    CreatedAt =
+                        now
+                };
+
+            await _verificationChallengeRepository
+                .AddAsync(
+                    challenge);
+
+            await _verificationChallengeRepository
+                .SaveChangesAsync();
+
+            return resetCode;
+        }
+
+        public async Task<bool>
+            ResetPasswordAsync(
+                string email,
+                string code,
+                string newPassword)
+        {
+            if (
+                string.IsNullOrWhiteSpace(email) ||
+                string.IsNullOrWhiteSpace(code) ||
+                string.IsNullOrWhiteSpace(newPassword)
+            )
+            {
+                return false;
+            }
+
+            var normalizedEmail =
+                email
+                    .Trim()
+                    .ToLowerInvariant();
+
+            var normalizedCode =
+                code.Trim();
+
+            var now =
+                _appClock.UtcNow;
+
+            var user =
+                await _userRepository
+                    .GetByEmailAsync(
+                        normalizedEmail);
+
+            if (
+                user == null ||
+                !user.IsActive ||
+                !user.IsEmailVerified
+            )
+            {
+                return false;
+            }
+
+            var challenge =
+                await _verificationChallengeRepository
+                    .GetLatestActiveAsync(
+                        user.Id,
+                        VerificationChallengeTypes
+                            .PasswordReset,
+                        now);
+
+            if (challenge == null)
+            {
+                return false;
+            }
+
+            if (
+                challenge.AttemptCount >=
+                MaxPasswordResetAttempts
+            )
+            {
+                challenge.ExpiresAt =
+                    now;
+
+                await _verificationChallengeRepository
+                    .SaveChangesAsync();
+
+                return false;
+            }
+
+            var isCodeValid =
+                _verificationCodeService
+                    .VerifySecret(
+                        normalizedCode,
+                        challenge.SecretHash);
+
+            if (!isCodeValid)
+            {
+                challenge.AttemptCount++;
+
+                if (
+                    challenge.AttemptCount >=
+                    MaxPasswordResetAttempts
+                )
+                {
+                    challenge.ExpiresAt =
+                        now;
+                }
+
+                await _verificationChallengeRepository
+                    .SaveChangesAsync();
+
+                return false;
+            }
+
+            /*
+             * Kod doğruysa şifre yalnızca BCrypt
+             * hash'i olarak değiştirilir.
+             */
+            user.PasswordHash =
+                BCrypt.Net.BCrypt
+                    .HashPassword(
+                        newPassword);
+            /*
+ * Şifre sıfırlandığında mevcut bütün
+ * JWT oturumları geçersiz hale gelir.
+ */
+            user.TokenVersion++;
+
+            /*
+             * Kullanıcı doğru sıfırlama kodunu
+             * kanıtladığı için eski login kilidi
+             * temizlenir.
+             */
+            user.FailedLoginCount =
+                0;
+
+            user.LockoutEndAt =
+                null;
 
             challenge.UsedAt =
                 now;

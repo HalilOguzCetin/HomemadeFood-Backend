@@ -144,6 +144,80 @@ namespace HomemadeFood.Api.Controllers
         }
 
         [EnableRateLimiting(
+            RateLimitPolicies
+                .PasswordResetRequest)]
+        [HttpPost("forgot-password")]
+        public async Task<IActionResult>
+            ForgotPassword(
+                [FromBody]
+                ForgotPasswordRequest request)
+        {
+            await _authService
+                .ForgotPasswordAsync(
+                    request);
+
+            /*
+             * Hesabın var olup olmadığı,
+             * aktif olup olmadığı veya e-posta
+             * doğrulama durumu açıklanmaz.
+             */
+            return Ok(
+                ApiResponse<object>.Succeed(
+                    new
+                    {
+                        email =
+                            request.Email
+                                .Trim()
+                                .ToLowerInvariant()
+                    },
+
+                    "E-posta adresi uygunsa şifre sıfırlama kodu gönderildi.",
+
+                    ApiResponseCodes
+                        .PasswordResetCodeRequested));
+        }
+
+        [EnableRateLimiting(
+            RateLimitPolicies
+                .PasswordResetConfirm)]
+        [HttpPost("reset-password")]
+        public async Task<IActionResult>
+            ResetPassword(
+                [FromBody]
+                ResetPasswordRequest request)
+        {
+            var result =
+                await _authService
+                    .ResetPasswordAsync(
+                        request);
+
+            if (!result)
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes
+                            .PasswordResetFailed,
+
+                        "Şifre sıfırlama kodu geçersiz, süresi dolmuş veya kullanılamıyor."));
+            }
+
+            return Ok(
+                ApiResponse<object>.Succeed(
+                    new
+                    {
+                        email =
+                            request.Email
+                                .Trim()
+                                .ToLowerInvariant()
+                    },
+
+                    "Şifreniz başarıyla güncellendi.",
+
+                    ApiResponseCodes
+                        .PasswordResetSuccess));
+        }
+
+        [EnableRateLimiting(
             RateLimitPolicies.Login)]
         [HttpPost("login")]
         public async Task<IActionResult>

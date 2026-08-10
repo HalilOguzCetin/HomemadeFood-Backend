@@ -84,6 +84,9 @@ namespace HomemadeFood.Api.Data
                 entity.Property(x => x.IsEmailVerified)
                     .IsRequired()
                     .HasDefaultValue(false);
+                entity.Property(x => x.TokenVersion)
+    .IsRequired()
+    .HasDefaultValue(0);
 
                 entity.HasOne(x => x.ProducerProfile)
                     .WithOne(x => x.User)

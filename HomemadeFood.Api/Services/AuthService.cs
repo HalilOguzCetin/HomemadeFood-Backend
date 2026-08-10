@@ -86,6 +86,51 @@ namespace HomemadeFood.Api.Services
                     normalizedEmail,
                     verificationCode);
         }
+        public async Task ForgotPasswordAsync(
+    ForgotPasswordRequest request)
+        {
+            var normalizedEmail =
+                request.Email
+                    .Trim()
+                    .ToLowerInvariant();
+
+            var resetCode =
+                await _verificationChallengeService
+                    .PreparePasswordResetAsync(
+                        normalizedEmail);
+
+            /*
+             * null olması:
+             * - kullanıcı yok,
+             * - hesap pasif,
+             * - e-posta doğrulanmamış,
+             * - cooldown devam ediyor
+             *
+             * olabilir.
+             *
+             * Bu ayrım dışarıya verilmez.
+             */
+            if (resetCode == null)
+            {
+                return;
+            }
+
+            await _emailSender
+                .SendPasswordResetCodeAsync(
+                    normalizedEmail,
+                    resetCode);
+        }
+
+        public async Task<bool> ResetPasswordAsync(
+            ResetPasswordRequest request)
+        {
+            return await
+                _verificationChallengeService
+                    .ResetPasswordAsync(
+                        request.Email,
+                        request.Code,
+                        request.NewPassword);
+        }
 
         public async Task<bool> RegisterAsync(
             RegisterRequest request)

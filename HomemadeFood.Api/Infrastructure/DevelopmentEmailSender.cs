@@ -5,7 +5,8 @@ namespace HomemadeFood.Api.Infrastructure
     public sealed class DevelopmentEmailSender :
         IEmailSender
     {
-        private readonly ILogger<DevelopmentEmailSender>
+        private readonly
+            ILogger<DevelopmentEmailSender>
             _logger;
 
         private readonly IHostEnvironment
@@ -23,21 +24,37 @@ namespace HomemadeFood.Api.Infrastructure
             string email,
             string code)
         {
+            EnsureDevelopment();
+
+            _logger.LogWarning(
+                "DEV ONLY - E-posta doğrulama kodu. Email: {Email}, Code: {Code}",
+                MaskEmail(email),
+                code);
+
+            return Task.CompletedTask;
+        }
+
+        public Task SendPasswordResetCodeAsync(
+            string email,
+            string code)
+        {
+            EnsureDevelopment();
+
+            _logger.LogWarning(
+                "DEV ONLY - Şifre sıfırlama kodu. Email: {Email}, Code: {Code}",
+                MaskEmail(email),
+                code);
+
+            return Task.CompletedTask;
+        }
+
+        private void EnsureDevelopment()
+        {
             if (!_environment.IsDevelopment())
             {
                 throw new InvalidOperationException(
                     "DevelopmentEmailSender yalnızca Development ortamında kullanılabilir.");
             }
-
-            var maskedEmail =
-                MaskEmail(email);
-
-            _logger.LogWarning(
-                "DEV ONLY - E-posta doğrulama kodu. Email: {Email}, Code: {Code}",
-                maskedEmail,
-                code);
-
-            return Task.CompletedTask;
         }
 
         private static string MaskEmail(
@@ -67,7 +84,9 @@ namespace HomemadeFood.Api.Infrastructure
                     ? localPart[..2]
                     : localPart[..1];
 
-            return visiblePrefix + "***" + domain;
+            return visiblePrefix +
+                   "***" +
+                   domain;
         }
     }
 }

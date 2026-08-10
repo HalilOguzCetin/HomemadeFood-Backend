@@ -387,6 +387,7 @@ builder.Services
                                         context.HttpContext
                                             .RequestAborted);
 
+
                             if (user == null ||
                                 !user.IsActive)
                             {
@@ -409,6 +410,24 @@ builder.Services
                             {
                                 context.Fail(
                                     "Kullanýcýnýn rolü deðiþti. Yeniden giriþ yapýlmalýdýr.");
+
+                                return;
+                            }
+                            var tokenVersionValue =
+    context.Principal?
+        .FindFirstValue(
+            JwtTokenGenerator
+                .TokenVersionClaim);
+
+                            if (
+                                !int.TryParse(
+                                    tokenVersionValue,
+                                    out var tokenVersion) ||
+                                tokenVersion != user.TokenVersion
+                            )
+                            {
+                                context.Fail(
+                                    "Oturum sürümü geçersiz. Yeniden giriþ yapýlmalýdýr.");
 
                                 return;
                             }
@@ -636,6 +655,74 @@ builder.Services.AddRateLimiter(
                             true
                     }));
 
+        options.AddPolicy(
+            RateLimitPolicies
+                .PasswordResetRequest,
+
+            httpContext =>
+                RateLimitPartition
+                    .GetFixedWindowLimiter(
+                        partitionKey:
+                            httpContext.Connection
+                                .RemoteIpAddress
+                                ?.ToString()
+                            ?? "unknown",
+
+                        factory: _ =>
+                            new FixedWindowRateLimiterOptions
+                            {
+                                PermitLimit =
+                                    5,
+
+                                Window =
+                                    TimeSpan
+                                        .FromMinutes(10),
+
+                                QueueLimit =
+                                    0,
+
+                                QueueProcessingOrder =
+                                    QueueProcessingOrder
+                                        .OldestFirst,
+
+                                AutoReplenishment =
+                                    true
+                            }));
+
+        options.AddPolicy(
+            RateLimitPolicies
+                .PasswordResetConfirm,
+
+            httpContext =>
+                RateLimitPartition
+                    .GetFixedWindowLimiter(
+                        partitionKey:
+                            httpContext.Connection
+                                .RemoteIpAddress
+                                ?.ToString()
+                            ?? "unknown",
+
+                        factory: _ =>
+                            new FixedWindowRateLimiterOptions
+                            {
+                                PermitLimit =
+                                    10,
+
+                                Window =
+                                    TimeSpan
+                                        .FromMinutes(10),
+
+                                QueueLimit =
+                                    0,
+
+                                QueueProcessingOrder =
+                                    QueueProcessingOrder
+                                        .OldestFirst,
+
+                                AutoReplenishment =
+                                    true
+                            }));
+
         options.OnRejected =
             async (
                 context,
@@ -682,7 +769,7 @@ builder.Services.AddRateLimiter(
                     ApiResponse<object>.Fail(
                         "RATE_LIMIT_EXCEEDED",
 
-                        "Çok fazla giriþ denemesi yapýldý. Lütfen kýsa bir süre sonra tekrar deneyin.");
+                        "Çok fazla istek gönderildi. Lütfen kýsa bir süre sonra tekrar deneyin.");
 
                 await response.WriteAsJsonAsync(
                     apiResponse,
