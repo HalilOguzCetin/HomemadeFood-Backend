@@ -220,6 +220,10 @@ builder.Services.AddScoped<
     FoodService>();
 
 builder.Services.AddScoped<
+    IFoodImageStorageService,
+    FoodImageStorageService>();
+
+builder.Services.AddScoped<
     ICategoryRepository,
     CategoryRepository>();
 
@@ -787,6 +791,12 @@ if (app.Environment.IsDevelopment())
 
 app.UseExceptionHandler();
 app.UseHttpsRedirection();
+
+/*
+ * wwwroot/uploads/foods altýndaki yemek fotoðraflarýný
+ * /uploads/foods/... URL'leri üzerinden eriþilebilir yapar.
+ */
+app.UseStaticFiles();
 
 app.UseRouting();
 

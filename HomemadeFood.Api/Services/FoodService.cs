@@ -8,13 +8,16 @@ namespace HomemadeFood.Api.Services
     {
         private readonly IFoodRepository _foodRepository;
         private readonly IProducerRepository _producerRepository;
+        private readonly IFoodImageStorageService _foodImageStorageService;
 
         public FoodService(
             IFoodRepository foodRepository,
-            IProducerRepository producerRepository)
+            IProducerRepository producerRepository,
+            IFoodImageStorageService foodImageStorageService)
         {
             _foodRepository = foodRepository;
             _producerRepository = producerRepository;
+            _foodImageStorageService = foodImageStorageService;
         }
 
         public async Task<FoodResponse?> CreateFoodAsync(
@@ -39,31 +42,59 @@ namespace HomemadeFood.Api.Services
                 return null;
             }
 
-            var food = new Food
+            if (request.Image == null)
             {
-                ProducerProfileId = producerProfile.Id,
-                ProducerProfile = producerProfile,
+                throw new ArgumentException(
+                    "Yemek fotoğrafı zorunludur.");
+            }
 
-                CategoryId = category.Id,
-                Category = category,
+            string? imageUrl = null;
 
-                Name = request.Name.Trim(),
-                Description = request.Description.Trim(),
-                Price = request.Price,
-                PreparationTimeMinutes =
-                    request.PreparationTimeMinutes,
+            try
+            {
+                imageUrl =
+                    await _foodImageStorageService
+                        .SaveAsync(request.Image);
 
-                ImageUrl = request.ImageUrl?.Trim()
-                    ?? string.Empty,
+                var food = new Food
+                {
+                    ProducerProfileId = producerProfile.Id,
+                    ProducerProfile = producerProfile,
 
-                IsAvailable = true,
-                CreatedAt = DateTime.UtcNow
-            };
+                    CategoryId = category.Id,
+                    Category = category,
 
-            await _foodRepository.AddAsync(food);
-            await _foodRepository.SaveChangesAsync();
+                    Name = request.Name.Trim(),
+                    Description = request.Description.Trim(),
+                    Price = request.Price,
+                    PreparationTimeMinutes =
+                        request.PreparationTimeMinutes,
 
-            return MapToResponse(food);
+                    ImageUrl = imageUrl,
+
+                    IsAvailable = true,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                await _foodRepository.AddAsync(food);
+                await _foodRepository.SaveChangesAsync();
+
+                return MapToResponse(food);
+            }
+            catch
+            {
+                /*
+                 * Dosya yazıldıktan sonra DB kaydı başarısız olursa
+                 * sunucuda sahipsiz görsel bırakmıyoruz.
+                 */
+                if (!string.IsNullOrWhiteSpace(imageUrl))
+                {
+                    await _foodImageStorageService
+                        .DeleteAsync(imageUrl);
+                }
+
+                throw;
+            }
         }
         public async Task<List<FoodResponse>>
     GetAvailableFoodsAsync(

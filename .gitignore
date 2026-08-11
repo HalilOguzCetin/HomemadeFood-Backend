@@ -12,3 +12,7 @@ packages/
 TestResults/
 
 .vscode/
+# Runtime uploaded food images
+wwwroot/uploads/foods/
+
+HomemadeFood.Api/wwwroot/uploads/foods/

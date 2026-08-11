@@ -82,8 +82,10 @@ namespace HomemadeFood.Api.Controllers
         }
 
         [HttpPost]
+        [Consumes("multipart/form-data")]
+        [RequestSizeLimit(6 * 1024 * 1024)]
         public async Task<IActionResult> CreateFood(
-            [FromBody] CreateFoodRequest request)
+            [FromForm] CreateFoodRequest request)
         {
             if (!TryGetUserId(out var userId))
             {
@@ -92,11 +94,31 @@ namespace HomemadeFood.Api.Controllers
                         ApiResponseCodes.Unauthorized,
                         "Kullanıcı bilgisi alınamadı."));
             }
+            if (request.Image == null ||
+    request.Image.Length <= 0)
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.BadRequest,
+                        "Yemek fotoğrafı zorunludur."));
+            }
 
-            var food =
-                await _foodService.CreateFoodAsync(
-                    userId,
-                    request);
+            FoodResponse? food;
+
+            try
+            {
+                food =
+                    await _foodService.CreateFoodAsync(
+                        userId,
+                        request);
+            }
+            catch (ArgumentException exception)
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.BadRequest,
+                        exception.Message));
+            }
 
             if (food == null)
             {
