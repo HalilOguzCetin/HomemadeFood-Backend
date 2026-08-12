@@ -136,5 +136,10 @@
 
         public const string PasswordResetFailed =
             "PASSWORD_RESET_FAILED";
+        public const string GeocodingNotFound =
+    "GEOCODING_NOT_FOUND";
+
+        public const string GeocodingServiceUnavailable =
+            "GEOCODING_SERVICE_UNAVAILABLE";
     }
 }

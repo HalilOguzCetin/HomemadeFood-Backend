@@ -63,6 +63,19 @@ if (string.IsNullOrWhiteSpace(jwtAudience))
     throw new InvalidOperationException(
         "Jwt:Audience deðeri bulunamadý.");
 }
+var geocodingApiKey =
+    builder.Configuration[
+        "GoogleMaps:GeocodingApiKey"];
+
+if (string.IsNullOrWhiteSpace(
+        geocodingApiKey))
+{
+    throw new InvalidOperationException(
+        "GoogleMaps:GeocodingApiKey deðeri bulunamadý. " +
+        "Anahtarý User Secrets içine ekleyin.");
+}
+
+
 
 // ---------------------------------------------------------
 // DOÐRULAMA KODU HASH ANAHTARI
@@ -246,6 +259,19 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     IAddressService,
     AddressService>();
+builder.Services.AddHttpClient<
+    IGoogleGeocodingService,
+    GoogleGeocodingService>(
+        client =>
+        {
+            client.BaseAddress =
+                new Uri(
+                    "https://geocode.googleapis.com/");
+
+            client.Timeout =
+                TimeSpan.FromSeconds(10);
+        });
+
 
 builder.Services.AddScoped<
     ICartRepository,
