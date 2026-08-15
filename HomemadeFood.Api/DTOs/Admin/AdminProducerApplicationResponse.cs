@@ -21,6 +21,8 @@
         public string Description { get; set; } =
             string.Empty;
 
+        public string? BusinessImageUrl { get; set; }
+
         public string Address { get; set; } =
             string.Empty;
 

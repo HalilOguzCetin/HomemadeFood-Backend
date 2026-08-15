@@ -221,6 +221,10 @@ builder.Services.AddScoped<
     ProducerService>();
 
 builder.Services.AddScoped<
+    IProducerImageStorageService,
+    ProducerImageStorageService>();
+
+builder.Services.AddScoped<
     IAdminService,
     AdminService>();
 

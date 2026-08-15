@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using Microsoft.AspNetCore.Http;
+using System.ComponentModel.DataAnnotations;
 
 namespace HomemadeFood.Api.DTOs.Producer
 {
@@ -21,6 +22,12 @@ namespace HomemadeFood.Api.DTOs.Producer
                 "İşletme açıklaması 10 ile 1000 karakter arasında olmalıdır.")]
         public string Description { get; set; } =
             string.Empty;
+
+        /*
+         * Profil güncellemede yeni görsel seçimi opsiyoneldir.
+         * Null gelirse mevcut BusinessImageUrl korunur.
+         */
+        public IFormFile? BusinessImage { get; set; }
 
         [Required(ErrorMessage = "İşletme adresi zorunludur.")]
         [StringLength(
@@ -89,19 +96,18 @@ namespace HomemadeFood.Api.DTOs.Producer
                 "Adres tarifi en fazla 300 karakter olabilir.")]
         public string? AddressNote { get; set; }
 
-        [Range(
-            -90,
-            90,
-            ErrorMessage =
-                "Enlem -90 ile 90 arasında olmalıdır.")]
-        public double Latitude { get; set; }
+        /*
+         * multipart/form-data kültür farklarından etkilenmemek için
+         * koordinatlar formdan string alınır ve servis katmanında
+         * InvariantCulture ile double'a çevrilir.
+         */
+        [Required(ErrorMessage = "Enlem bilgisi zorunludur.")]
+        public string Latitude { get; set; } =
+            string.Empty;
 
-        [Range(
-            -180,
-            180,
-            ErrorMessage =
-                "Boylam -180 ile 180 arasında olmalıdır.")]
-        public double Longitude { get; set; }
+        [Required(ErrorMessage = "Boylam bilgisi zorunludur.")]
+        public string Longitude { get; set; } =
+            string.Empty;
 
         [Range(
             1,

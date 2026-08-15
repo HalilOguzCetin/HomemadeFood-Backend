@@ -61,12 +61,14 @@ namespace HomemadeFood.Api.Controllers
                         "Üretici profili başarıyla getirildi."));
         }
         [Authorize(
-     Policy =
-         AuthorizationPolicies.ApprovedProducer)]
+            Policy =
+                AuthorizationPolicies.ApprovedProducer)]
         [HttpPut("my-profile")]
+        [Consumes("multipart/form-data")]
+        [RequestSizeLimit(6 * 1024 * 1024)]
         public async Task<IActionResult> UpdateMyProfile(
-    [FromBody]
-    UpdateProducerProfileRequest request)
+            [FromForm]
+            UpdateProducerProfileRequest request)
         {
             if (!TryGetUserId(out var userId))
             {
@@ -76,11 +78,24 @@ namespace HomemadeFood.Api.Controllers
                         "Kullanıcı bilgisi alınamadı."));
             }
 
-            var updatedProfile =
-                await _producerService
-                    .UpdateMyProfileAsync(
-                        userId,
-                        request);
+            ProducerApplicationStatusResponse?
+                updatedProfile;
+
+            try
+            {
+                updatedProfile =
+                    await _producerService
+                        .UpdateMyProfileAsync(
+                            userId,
+                            request);
+            }
+            catch (ArgumentException exception)
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.BadRequest,
+                        exception.Message));
+            }
 
             if (updatedProfile == null)
             {
@@ -91,7 +106,8 @@ namespace HomemadeFood.Api.Controllers
             }
 
             return Ok(
-                ApiResponse<ProducerApplicationStatusResponse>
+                ApiResponse<
+                    ProducerApplicationStatusResponse>
                     .Succeed(
                         updatedProfile,
                         "Üretici profili başarıyla güncellendi."));
@@ -99,8 +115,10 @@ namespace HomemadeFood.Api.Controllers
 
         [Authorize(Roles = UserRoles.Customer)]
         [HttpPost("apply")]
+        [Consumes("multipart/form-data")]
+        [RequestSizeLimit(6 * 1024 * 1024)]
         public async Task<IActionResult> Apply(
-            [FromBody] ProducerApplicationRequest request)
+            [FromForm] ProducerApplicationRequest request)
         {
             if (!TryGetUserId(out var userId))
             {
@@ -110,10 +128,22 @@ namespace HomemadeFood.Api.Controllers
                         "Kullanıcı bilgisi alınamadı."));
             }
 
-            var result =
-                await _producerService.ApplyAsync(
-                    userId,
-                    request);
+            bool result;
+
+            try
+            {
+                result =
+                    await _producerService.ApplyAsync(
+                        userId,
+                        request);
+            }
+            catch (ArgumentException exception)
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.BadRequest,
+                        exception.Message));
+            }
 
             if (!result)
             {
@@ -121,7 +151,7 @@ namespace HomemadeFood.Api.Controllers
                     ApiResponse<object>.Fail(
                         ApiResponseCodes
                             .ProducerApplicationFailed,
-                        "Başvuru oluşturulamadı. Daha önce başvuru yapmış olabilirsiniz veya kapasite bilgisi geçersizdir."));
+                        "Başvuru oluşturulamadı. Daha önce başvuru yapmış olabilirsiniz veya bilgiler geçersizdir."));
             }
 
             return StatusCode(

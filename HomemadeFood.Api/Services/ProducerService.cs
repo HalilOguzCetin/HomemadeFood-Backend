@@ -2,6 +2,7 @@
 using HomemadeFood.Api.DTOs.Producer;
 using HomemadeFood.Api.Entities;
 using HomemadeFood.Api.Interfaces;
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 
 namespace HomemadeFood.Api.Services
@@ -9,13 +10,18 @@ namespace HomemadeFood.Api.Services
     public class ProducerService : IProducerService
     {
         private readonly IProducerRepository _producerRepository;
+        private readonly IProducerImageStorageService
+            _producerImageStorageService;
         private readonly IAppClock _appClock;
 
         public ProducerService(
             IProducerRepository producerRepository,
+            IProducerImageStorageService producerImageStorageService,
             IAppClock appClock)
         {
             _producerRepository = producerRepository;
+            _producerImageStorageService =
+                producerImageStorageService;
             _appClock = appClock;
         }
 
@@ -105,16 +111,32 @@ namespace HomemadeFood.Api.Services
                 return false;
             }
 
-            if (request.Latitude < -90 ||
-                request.Latitude > 90)
+            if (
+                !double.TryParse(
+                    request.Latitude,
+                    NumberStyles.Float,
+                    CultureInfo.InvariantCulture,
+                    out var latitude) ||
+                latitude < -90 ||
+                latitude > 90
+            )
             {
-                return false;
+                throw new ArgumentException(
+                    "Enlem bilgisi geçersizdir.");
             }
 
-            if (request.Longitude < -180 ||
-                request.Longitude > 180)
+            if (
+                !double.TryParse(
+                    request.Longitude,
+                    NumberStyles.Float,
+                    CultureInfo.InvariantCulture,
+                    out var longitude) ||
+                longitude < -180 ||
+                longitude > 180
+            )
             {
-                return false;
+                throw new ArgumentException(
+                    "Boylam bilgisi geçersizdir.");
             }
 
             if (request.DailyCapacity < 1 ||
@@ -127,67 +149,125 @@ namespace HomemadeFood.Api.Services
                 await _producerRepository
                     .GetByUserIdAsync(userId);
 
-            if (existingApplication == null)
-            {
-                var producerProfile =
-                    new ProducerProfile
-                    {
-                        UserId = userId,
-                        BusinessName = businessName,
-                        Description = description,
-                        Address = address,
-
-                        City = city,
-                        District = district,
-                        Neighborhood = neighborhood,
-                        Street = street,
-                        BuildingNo = buildingNo,
-                        Floor = floor,
-                        ApartmentNo = apartmentNo,
-                        AddressNote = addressNote,
-
-                        Latitude = request.Latitude,
-                        Longitude = request.Longitude,
-
-                        DailyCapacity =
-                            request.DailyCapacity,
-
-                        RemainingCapacity =
-                            request.DailyCapacity,
-
-                        CapacityDate =
-                            _appClock.TurkeyToday,
-
-                        Rating = 0,
-
-                        IsAvailable = false,
-                        IsApproved = false,
-
-                        VerificationStatus =
-                            ProducerVerificationStatuses
-                                .Pending,
-
-                        CreatedAt =
-                            _appClock.UtcNow
-                    };
-
-                await _producerRepository
-                    .AddAsync(producerProfile);
-
-                await _producerRepository
-                    .SaveChangesAsync();
-
-                return true;
-            }
-
-            if (!string.Equals(
+            if (
+                existingApplication != null &&
+                !string.Equals(
                     existingApplication
                         .VerificationStatus,
                     ProducerVerificationStatuses
                         .Rejected,
-                    StringComparison.Ordinal))
+                    StringComparison.Ordinal)
+            )
             {
                 return false;
+            }
+
+            /*
+             * Yeni başvuruda vitrin görseli zorunludur.
+             * Reddedilmiş bir başvuruda mevcut görsel varsa
+             * kullanıcı aynı görselle yeniden başvurabilir.
+             */
+            if (
+                (request.BusinessImage == null ||
+                 request.BusinessImage.Length <= 0) &&
+                (existingApplication == null ||
+                 string.IsNullOrWhiteSpace(
+                     existingApplication.BusinessImageUrl))
+            )
+            {
+                throw new ArgumentException(
+                    "İşletme vitrin görseli zorunludur.");
+            }
+
+            if (existingApplication == null)
+            {
+                string? businessImageUrl = null;
+
+                try
+                {
+                    businessImageUrl =
+                        await _producerImageStorageService
+                            .SaveAsync(
+                                request.BusinessImage!);
+
+                    var producerProfile =
+                        new ProducerProfile
+                        {
+                            UserId = userId,
+                            BusinessName = businessName,
+                            Description = description,
+
+                            BusinessImageUrl =
+                                businessImageUrl,
+
+                            Address = address,
+
+                            City = city,
+                            District = district,
+                            Neighborhood = neighborhood,
+                            Street = street,
+                            BuildingNo = buildingNo,
+                            Floor = floor,
+                            ApartmentNo = apartmentNo,
+                            AddressNote = addressNote,
+
+                            Latitude = latitude,
+                            Longitude = longitude,
+
+                            DailyCapacity =
+                                request.DailyCapacity,
+
+                            RemainingCapacity =
+                                request.DailyCapacity,
+
+                            CapacityDate =
+                                _appClock.TurkeyToday,
+
+                            Rating = 0,
+
+                            IsAvailable = false,
+                            IsApproved = false,
+
+                            VerificationStatus =
+                                ProducerVerificationStatuses
+                                    .Pending,
+
+                            CreatedAt =
+                                _appClock.UtcNow
+                        };
+
+                    await _producerRepository
+                        .AddAsync(producerProfile);
+
+                    await _producerRepository
+                        .SaveChangesAsync();
+
+                    return true;
+                }
+                catch
+                {
+                    await SafeDeleteBusinessImageAsync(
+                        businessImageUrl);
+
+                    throw;
+                }
+            }
+
+            var previousBusinessImageUrl =
+                existingApplication.BusinessImageUrl;
+
+            string? replacementBusinessImageUrl =
+                null;
+
+            if (
+                request.BusinessImage != null &&
+                request.BusinessImage.Length > 0
+            )
+            {
+                replacementBusinessImageUrl =
+                    await _producerImageStorageService
+                        .SaveAsync(
+                            request.BusinessImage);
             }
 
             existingApplication.BusinessName =
@@ -195,6 +275,10 @@ namespace HomemadeFood.Api.Services
 
             existingApplication.Description =
                 description;
+
+            existingApplication.BusinessImageUrl =
+                replacementBusinessImageUrl ??
+                previousBusinessImageUrl;
 
             existingApplication.Address =
                 address;
@@ -209,8 +293,8 @@ namespace HomemadeFood.Api.Services
                 floor,
                 apartmentNo,
                 addressNote,
-                request.Latitude,
-                request.Longitude);
+                latitude,
+                longitude);
 
             existingApplication.DailyCapacity =
                 request.DailyCapacity;
@@ -248,11 +332,33 @@ namespace HomemadeFood.Api.Services
                 await _producerRepository
                     .SaveChangesAsync();
 
+                if (
+                    replacementBusinessImageUrl != null &&
+                    !string.Equals(
+                        previousBusinessImageUrl,
+                        replacementBusinessImageUrl,
+                        StringComparison.OrdinalIgnoreCase)
+                )
+                {
+                    await SafeDeleteBusinessImageAsync(
+                        previousBusinessImageUrl);
+                }
+
                 return true;
             }
             catch (DbUpdateConcurrencyException)
             {
+                await SafeDeleteBusinessImageAsync(
+                    replacementBusinessImageUrl);
+
                 return false;
+            }
+            catch
+            {
+                await SafeDeleteBusinessImageAsync(
+                    replacementBusinessImageUrl);
+
+                throw;
             }
         }
 
@@ -281,37 +387,48 @@ namespace HomemadeFood.Api.Services
                 UpdateProducerProfileRequest request)
         {
             var businessName =
-                request.BusinessName?.Trim() ?? string.Empty;
+                request.BusinessName?.Trim() ??
+                string.Empty;
 
             var description =
-                request.Description?.Trim() ?? string.Empty;
+                request.Description?.Trim() ??
+                string.Empty;
 
             var address =
-                request.Address?.Trim() ?? string.Empty;
+                request.Address?.Trim() ??
+                string.Empty;
 
             var city =
-                request.City?.Trim() ?? string.Empty;
+                request.City?.Trim() ??
+                string.Empty;
 
             var district =
-                request.District?.Trim() ?? string.Empty;
+                request.District?.Trim() ??
+                string.Empty;
 
             var neighborhood =
-                request.Neighborhood?.Trim() ?? string.Empty;
+                request.Neighborhood?.Trim() ??
+                string.Empty;
 
             var street =
-                request.Street?.Trim() ?? string.Empty;
+                request.Street?.Trim() ??
+                string.Empty;
 
             var buildingNo =
-                request.BuildingNo?.Trim() ?? string.Empty;
+                request.BuildingNo?.Trim() ??
+                string.Empty;
 
             var floor =
-                NormalizeOptional(request.Floor);
+                NormalizeOptional(
+                    request.Floor);
 
             var apartmentNo =
-                NormalizeOptional(request.ApartmentNo);
+                NormalizeOptional(
+                    request.ApartmentNo);
 
             var addressNote =
-                NormalizeOptional(request.AddressNote);
+                NormalizeOptional(
+                    request.AddressNote);
 
             if (!IsRequiredTextValid(
                     businessName,
@@ -362,16 +479,32 @@ namespace HomemadeFood.Api.Services
                 return null;
             }
 
-            if (request.Latitude < -90 ||
-                request.Latitude > 90)
+            if (
+                !double.TryParse(
+                    request.Latitude,
+                    NumberStyles.Float,
+                    CultureInfo.InvariantCulture,
+                    out var latitude) ||
+                latitude < -90 ||
+                latitude > 90
+            )
             {
-                return null;
+                throw new ArgumentException(
+                    "Enlem bilgisi geçersizdir.");
             }
 
-            if (request.Longitude < -180 ||
-                request.Longitude > 180)
+            if (
+                !double.TryParse(
+                    request.Longitude,
+                    NumberStyles.Float,
+                    CultureInfo.InvariantCulture,
+                    out var longitude) ||
+                longitude < -180 ||
+                longitude > 180
+            )
             {
-                return null;
+                throw new ArgumentException(
+                    "Boylam bilgisi geçersizdir.");
             }
 
             if (request.DailyCapacity < 1 ||
@@ -391,10 +524,12 @@ namespace HomemadeFood.Api.Services
 
             if (!producerProfile.IsApproved ||
                 !string.Equals(
-                    producerProfile.VerificationStatus,
+                    producerProfile
+                        .VerificationStatus,
                     ProducerVerificationStatuses
                         .Approved,
-                    StringComparison.OrdinalIgnoreCase))
+                    StringComparison
+                        .OrdinalIgnoreCase))
             {
                 return null;
             }
@@ -404,7 +539,8 @@ namespace HomemadeFood.Api.Services
 
             int usedCapacity;
 
-            if (producerProfile.CapacityDate != today)
+            if (producerProfile.CapacityDate !=
+                today)
             {
                 usedCapacity = 0;
             }
@@ -413,8 +549,10 @@ namespace HomemadeFood.Api.Services
                 usedCapacity =
                     Math.Max(
                         0,
-                        producerProfile.DailyCapacity -
-                        producerProfile.RemainingCapacity);
+                        producerProfile
+                            .DailyCapacity -
+                        producerProfile
+                            .RemainingCapacity);
             }
 
             var newRemainingCapacity =
@@ -423,11 +561,35 @@ namespace HomemadeFood.Api.Services
                     request.DailyCapacity -
                     usedCapacity);
 
+            var oldBusinessImageUrl =
+                producerProfile.BusinessImageUrl;
+
+            string? newBusinessImageUrl =
+                null;
+
+            if (
+                request.BusinessImage != null &&
+                request.BusinessImage.Length > 0
+            )
+            {
+                newBusinessImageUrl =
+                    await _producerImageStorageService
+                        .SaveAsync(
+                            request.BusinessImage);
+            }
+
             producerProfile.BusinessName =
                 businessName;
 
             producerProfile.Description =
                 description;
+
+            if (!string.IsNullOrWhiteSpace(
+                    newBusinessImageUrl))
+            {
+                producerProfile.BusinessImageUrl =
+                    newBusinessImageUrl;
+            }
 
             producerProfile.Address =
                 address;
@@ -442,8 +604,8 @@ namespace HomemadeFood.Api.Services
                 floor,
                 apartmentNo,
                 addressNote,
-                request.Latitude,
-                request.Longitude);
+                latitude,
+                longitude);
 
             producerProfile.DailyCapacity =
                 request.DailyCapacity;
@@ -466,11 +628,65 @@ namespace HomemadeFood.Api.Services
             }
             catch (DbUpdateConcurrencyException)
             {
+                if (!string.IsNullOrWhiteSpace(
+                        newBusinessImageUrl))
+                {
+                    await SafeDeleteBusinessImageAsync(
+                        newBusinessImageUrl);
+                }
+
                 return null;
+            }
+            catch
+            {
+                if (!string.IsNullOrWhiteSpace(
+                        newBusinessImageUrl))
+                {
+                    await SafeDeleteBusinessImageAsync(
+                        newBusinessImageUrl);
+                }
+
+                throw;
+            }
+
+            if (
+                !string.IsNullOrWhiteSpace(
+                    newBusinessImageUrl) &&
+                !string.Equals(
+                    oldBusinessImageUrl,
+                    newBusinessImageUrl,
+                    StringComparison.OrdinalIgnoreCase)
+            )
+            {
+                await SafeDeleteBusinessImageAsync(
+                    oldBusinessImageUrl);
             }
 
             return MapToResponse(
                 producerProfile);
+        }
+
+        private async Task SafeDeleteBusinessImageAsync(
+            string? imageUrl)
+        {
+            if (string.IsNullOrWhiteSpace(imageUrl))
+            {
+                return;
+            }
+
+            try
+            {
+                await _producerImageStorageService
+                    .DeleteAsync(imageUrl);
+            }
+            catch
+            {
+                /*
+                 * DB işlemi başarılı/başarısız durumdayken eski veya
+                 * geçici dosyanın temizlenememesi ana isteği bozmaz.
+                 * İleride merkezi loglama eklendiğinde burada loglanabilir.
+                 */
+            }
         }
 
         private static void ApplyStructuredAddress(
@@ -512,6 +728,9 @@ namespace HomemadeFood.Api.Services
 
                 Description =
                     producerProfile.Description,
+
+                BusinessImageUrl =
+                    producerProfile.BusinessImageUrl,
 
                 Address =
                     producerProfile.Address,

@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Http;
 
 namespace HomemadeFood.Api.DTOs.Producer
 {
@@ -21,6 +22,14 @@ namespace HomemadeFood.Api.DTOs.Producer
                 "İşletme açıklaması 10 ile 1000 karakter arasında olmalıdır.")]
         public string Description { get; set; } =
             string.Empty;
+
+
+        /*
+         * İşletme/vitrin görseli yemek görsellerinden bağımsızdır.
+         * Yeni başvuruda zorunludur. Reddedilmiş eski başvuruda mevcut
+         * BusinessImageUrl varsa yeni görsel seçimi opsiyoneldir.
+         */
+        public IFormFile? BusinessImage { get; set; }
 
         [Required(ErrorMessage = "İşletme adresi zorunludur.")]
         [StringLength(
@@ -89,25 +98,19 @@ namespace HomemadeFood.Api.DTOs.Producer
                 "Adres tarifi en fazla 300 karakter olabilir.")]
         public string? AddressNote { get; set; }
 
-        [Range(
-            typeof(double),
-            "-90",
-            "90",
-            ErrorMessage =
-                "Enlem -90 ile 90 arasında olmalıdır.",
-            ParseLimitsInInvariantCulture = true,
-            ConvertValueInInvariantCulture = true)]
-        public double Latitude { get; set; }
+        /*
+         * multipart/form-data sayısal alanları işletim sistemi
+         * kültürüne göre bind edilebildiği için koordinatları önce
+         * string olarak alıyoruz. ProducerService bunları
+         * InvariantCulture ile güvenli şekilde parse eder.
+         */
+        [Required(ErrorMessage = "Enlem bilgisi zorunludur.")]
+        public string Latitude { get; set; } =
+            string.Empty;
 
-        [Range(
-            typeof(double),
-            "-180",
-            "180",
-            ErrorMessage =
-                "Boylam -180 ile 180 arasında olmalıdır.",
-            ParseLimitsInInvariantCulture = true,
-            ConvertValueInInvariantCulture = true)]
-        public double Longitude { get; set; }
+        [Required(ErrorMessage = "Boylam bilgisi zorunludur.")]
+        public string Longitude { get; set; } =
+            string.Empty;
 
         [Range(
             1,

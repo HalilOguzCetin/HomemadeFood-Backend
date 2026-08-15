@@ -142,6 +142,9 @@ namespace HomemadeFood.Api.Data
                     .HasMaxLength(1000)
                     .IsRequired();
 
+                entity.Property(x => x.BusinessImageUrl)
+                    .HasMaxLength(500);
+
                 entity.Property(x => x.Address)
                     .HasMaxLength(500)
                     .IsRequired();

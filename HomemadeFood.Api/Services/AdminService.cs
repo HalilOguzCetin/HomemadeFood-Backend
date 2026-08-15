@@ -112,7 +112,7 @@ namespace HomemadeFood.Api.Services
             producerProfile.RejectionReason =
                 null;
 
-            
+
 
             await _producerRepository
                 .SaveChangesAsync();
@@ -181,7 +181,7 @@ namespace HomemadeFood.Api.Services
             producerProfile.ApprovedByAdminId =
                 null;
 
-           
+
 
             await _producerRepository
                 .SaveChangesAsync();
@@ -573,6 +573,9 @@ namespace HomemadeFood.Api.Services
 
                 Description =
                     application.Description,
+
+                BusinessImageUrl =
+                    application.BusinessImageUrl,
 
                 Address =
                     application.Address,

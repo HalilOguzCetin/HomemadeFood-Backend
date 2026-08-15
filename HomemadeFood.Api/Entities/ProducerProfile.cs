@@ -12,6 +12,16 @@ namespace HomemadeFood.Api.Entities
         public string BusinessName { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
 
+        /*
+         * İşletmenin vitrin/kapak görseli.
+         * Yemek fotoğraflarından bağımsızdır.
+         *
+         * Nullable tutulmasının nedeni mevcut üretici kayıtlarını
+         * migration sırasında bozmamaktır. Yeni başvurularda görsel
+         * zorunluluğu Aşama 3B'de servis katmanında uygulanacaktır.
+         */
+        public string? BusinessImageUrl { get; set; }
+
         public string Address { get; set; } = string.Empty;
 
         public string City { get; set; } = string.Empty;
