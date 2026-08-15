@@ -1,4 +1,5 @@
 ﻿using HomemadeFood.Api.Entities;
+using HomemadeFood.Api.ReadModels;
 
 namespace HomemadeFood.Api.Interfaces
 {
@@ -17,6 +18,14 @@ namespace HomemadeFood.Api.Interfaces
 
         Task<ProducerProfile?> GetByIdWithUserAsync(int producerProfileId);
         Task<ProducerProfile?> GetApprovedByUserIdAsync(int userId);
+
+        Task<List<ProducerStorefrontSummaryReadModel>>
+            GetAvailableStorefrontsAsync(
+                int? categoryId);
+
+        Task<ProducerStorefrontMenuReadModel?>
+            GetAvailableStorefrontMenuAsync(
+                int producerProfileId);
 
         Task SaveChangesAsync();
     }

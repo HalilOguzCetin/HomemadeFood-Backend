@@ -16,5 +16,13 @@ namespace HomemadeFood.Api.Interfaces
             UpdateMyProfileAsync(
                 int userId,
                 UpdateProducerProfileRequest request);
+
+        Task<List<ProducerStorefrontSummaryResponse>>
+            GetAvailableStorefrontsAsync(
+                int? categoryId);
+
+        Task<ProducerStorefrontMenuResponse?>
+            GetAvailableStorefrontMenuAsync(
+                int producerProfileId);
     }
 }

@@ -20,6 +20,83 @@ namespace HomemadeFood.Api.Controllers
         {
             _producerService = producerService;
         }
+
+        /*
+         * Müşteri ana sayfasındaki işletme/vitrin kartları.
+         *
+         * categoryId null:
+         *   En az bir aktif yemeği bulunan bütün uygun işletmeler.
+         *
+         * categoryId dolu:
+         *   Yalnızca seçilen kategoride en az bir aktif yemeği
+         *   bulunan uygun işletmeler.
+         */
+        [AllowAnonymous]
+        [HttpGet("storefronts")]
+        public async Task<IActionResult>
+            GetAvailableStorefronts(
+                [FromQuery] int? categoryId)
+        {
+            if (
+                categoryId.HasValue &&
+                categoryId.Value <= 0
+            )
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.BadRequest,
+                        "Kategori ID değeri sıfırdan büyük olmalıdır."));
+            }
+
+            var storefronts =
+                await _producerService
+                    .GetAvailableStorefrontsAsync(
+                        categoryId);
+
+            return Ok(
+                ApiResponse<
+                    List<
+                        ProducerStorefrontSummaryResponse>>
+                    .Succeed(
+                        storefronts,
+                        "İşletmeler başarıyla getirildi."));
+        }
+        [AllowAnonymous]
+        [HttpGet(
+            "storefronts/{producerProfileId:int}/menu")]
+        public async Task<IActionResult>
+            GetAvailableStorefrontMenu(
+                int producerProfileId)
+        {
+            if (producerProfileId <= 0)
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.BadRequest,
+                        "İşletme ID değeri sıfırdan büyük olmalıdır."));
+            }
+
+            var storefrontMenu =
+                await _producerService
+                    .GetAvailableStorefrontMenuAsync(
+                        producerProfileId);
+
+            if (storefrontMenu == null)
+            {
+                return NotFound(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.NotFound,
+                        "İşletme bulunamadı, şu anda hizmet vermiyor veya aktif menüsü bulunmuyor."));
+            }
+
+            return Ok(
+                ApiResponse<
+                    ProducerStorefrontMenuResponse>
+                    .Succeed(
+                        storefrontMenu,
+                        "İşletme menüsü başarıyla getirildi."));
+        }
+
         [Authorize(
     Policy =
         AuthorizationPolicies.ApprovedProducer)]

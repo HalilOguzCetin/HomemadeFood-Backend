@@ -666,6 +666,168 @@ namespace HomemadeFood.Api.Services
                 producerProfile);
         }
 
+        public async Task<
+            List<ProducerStorefrontSummaryResponse>>
+            GetAvailableStorefrontsAsync(
+                int? categoryId)
+        {
+            var storefronts =
+                await _producerRepository
+                    .GetAvailableStorefrontsAsync(
+                        categoryId);
+
+            return storefronts
+                .Select(storefront =>
+                    new ProducerStorefrontSummaryResponse
+                    {
+                        ProducerProfileId =
+                            storefront
+                                .ProducerProfileId,
+
+                        BusinessName =
+                            storefront.BusinessName,
+
+                        Description =
+                            storefront.Description,
+
+                        BusinessImageUrl =
+                            storefront
+                                .BusinessImageUrl,
+
+                        Rating =
+                            storefront.Rating,
+
+                        City =
+                            storefront.City,
+
+                        District =
+                            storefront.District,
+
+                        AvailableFoodCount =
+                            storefront
+                                .AvailableFoodCount,
+
+                        AvailableCategoryCount =
+                            storefront
+                                .AvailableCategoryCount,
+
+                        MatchingFoodCount =
+                            storefront
+                                .MatchingFoodCount,
+
+                        MinimumPreparationTimeMinutes =
+                            storefront
+                                .MinimumPreparationTimeMinutes
+                    })
+                .ToList();
+        }
+
+        public async Task<
+            ProducerStorefrontMenuResponse?>
+            GetAvailableStorefrontMenuAsync(
+                int producerProfileId)
+        {
+            var storefront =
+                await _producerRepository
+                    .GetAvailableStorefrontMenuAsync(
+                        producerProfileId);
+
+            if (storefront == null)
+            {
+                return null;
+            }
+
+            /*
+             * Kategoriler backend tarafında gruplanır.
+             * Böylece Android Food listesini tekrar kategoriye
+             * ayırmak zorunda kalmaz.
+             *
+             * Boş kategori üretilemez; yalnızca storefront.Foods
+             * içinde gerçekten bulunan kategoriler response'a girer.
+             */
+            var categories =
+                storefront.Foods
+                    .GroupBy(food =>
+                        new
+                        {
+                            food.CategoryId,
+                            food.CategoryName
+                        })
+                    .OrderBy(group =>
+                        group.Key.CategoryName)
+                    .Select(group =>
+                        new ProducerStorefrontMenuCategoryResponse
+                        {
+                            CategoryId =
+                                group.Key.CategoryId,
+
+                            CategoryName =
+                                group.Key.CategoryName,
+
+                            Foods =
+                                group
+                                    .OrderBy(food =>
+                                        food.Name)
+                                    .Select(food =>
+                                        new ProducerStorefrontMenuFoodResponse
+                                        {
+                                            Id =
+                                                food.Id,
+
+                                            Name =
+                                                food.Name,
+
+                                            Description =
+                                                food.Description,
+
+                                            Price =
+                                                food.Price,
+
+                                            PreparationTimeMinutes =
+                                                food
+                                                    .PreparationTimeMinutes,
+
+                                            ImageUrl =
+                                                food.ImageUrl
+                                        })
+                                    .ToList()
+                        })
+                    .ToList();
+
+            return new ProducerStorefrontMenuResponse
+            {
+                ProducerProfileId =
+                    storefront.ProducerProfileId,
+
+                BusinessName =
+                    storefront.BusinessName,
+
+                Description =
+                    storefront.Description,
+
+                BusinessImageUrl =
+                    storefront.BusinessImageUrl,
+
+                Rating =
+                    storefront.Rating,
+
+                City =
+                    storefront.City,
+
+                District =
+                    storefront.District,
+
+                AvailableFoodCount =
+                    storefront.Foods.Count,
+
+                AvailableCategoryCount =
+                    categories.Count,
+
+                Categories =
+                    categories
+            };
+        }
+
         private async Task SafeDeleteBusinessImageAsync(
             string? imageUrl)
         {
