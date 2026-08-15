@@ -8,21 +8,15 @@ namespace HomemadeFood.Api.Services
 {
     public class ProducerService : IProducerService
     {
-        private readonly IProducerRepository
-            _producerRepository;
-
-        private readonly IAppClock
-            _appClock;
+        private readonly IProducerRepository _producerRepository;
+        private readonly IAppClock _appClock;
 
         public ProducerService(
             IProducerRepository producerRepository,
             IAppClock appClock)
         {
-            _producerRepository =
-                producerRepository;
-
-            _appClock =
-                appClock;
+            _producerRepository = producerRepository;
+            _appClock = appClock;
         }
 
         public async Task<bool> ApplyAsync(
@@ -30,38 +24,83 @@ namespace HomemadeFood.Api.Services
             ProducerApplicationRequest request)
         {
             var businessName =
-                request.BusinessName.Trim();
+                request.BusinessName?.Trim() ?? string.Empty;
 
             var description =
-                request.Description.Trim();
+                request.Description?.Trim() ?? string.Empty;
 
             var address =
-                request.Address.Trim();
+                request.Address?.Trim() ?? string.Empty;
 
-            /*
-             * DTO doğrulamasına ek olarak servis
-             * katmanında savunmacı kontroller yapılır.
-             */
-            if (string.IsNullOrWhiteSpace(
-                    businessName) ||
-                businessName.Length < 2 ||
-                businessName.Length > 150)
+            var city =
+                request.City?.Trim() ?? string.Empty;
+
+            var district =
+                request.District?.Trim() ?? string.Empty;
+
+            var neighborhood =
+                request.Neighborhood?.Trim() ?? string.Empty;
+
+            var street =
+                request.Street?.Trim() ?? string.Empty;
+
+            var buildingNo =
+                request.BuildingNo?.Trim() ?? string.Empty;
+
+            var floor =
+                NormalizeOptional(request.Floor);
+
+            var apartmentNo =
+                NormalizeOptional(request.ApartmentNo);
+
+            var addressNote =
+                NormalizeOptional(request.AddressNote);
+
+            if (!IsRequiredTextValid(
+                    businessName,
+                    2,
+                    150) ||
+                !IsRequiredTextValid(
+                    description,
+                    10,
+                    1000) ||
+                !IsRequiredTextValid(
+                    address,
+                    10,
+                    500) ||
+                !IsRequiredTextValid(
+                    city,
+                    1,
+                    100) ||
+                !IsRequiredTextValid(
+                    district,
+                    1,
+                    100) ||
+                !IsRequiredTextValid(
+                    neighborhood,
+                    1,
+                    120) ||
+                !IsRequiredTextValid(
+                    street,
+                    1,
+                    150) ||
+                !IsRequiredTextValid(
+                    buildingNo,
+                    1,
+                    30))
             {
                 return false;
             }
 
-            if (string.IsNullOrWhiteSpace(
-                    description) ||
-                description.Length < 10 ||
-                description.Length > 1000)
-            {
-                return false;
-            }
-
-            if (string.IsNullOrWhiteSpace(
-                    address) ||
-                address.Length < 10 ||
-                address.Length > 500)
+            if (!IsOptionalTextValid(
+                    floor,
+                    20) ||
+                !IsOptionalTextValid(
+                    apartmentNo,
+                    20) ||
+                !IsOptionalTextValid(
+                    addressNote,
+                    300))
             {
                 return false;
             }
@@ -88,32 +127,27 @@ namespace HomemadeFood.Api.Services
                 await _producerRepository
                     .GetByUserIdAsync(userId);
 
-            /*
-             * Kullanıcının daha önce hiç başvurusu
-             * bulunmuyorsa yeni profil oluşturulur.
-             */
             if (existingApplication == null)
             {
                 var producerProfile =
                     new ProducerProfile
                     {
-                        UserId =
-                            userId,
+                        UserId = userId,
+                        BusinessName = businessName,
+                        Description = description,
+                        Address = address,
 
-                        BusinessName =
-                            businessName,
+                        City = city,
+                        District = district,
+                        Neighborhood = neighborhood,
+                        Street = street,
+                        BuildingNo = buildingNo,
+                        Floor = floor,
+                        ApartmentNo = apartmentNo,
+                        AddressNote = addressNote,
 
-                        Description =
-                            description,
-
-                        Address =
-                            address,
-
-                        Latitude =
-                            request.Latitude,
-
-                        Longitude =
-                            request.Longitude,
+                        Latitude = request.Latitude,
+                        Longitude = request.Longitude,
 
                         DailyCapacity =
                             request.DailyCapacity,
@@ -124,18 +158,10 @@ namespace HomemadeFood.Api.Services
                         CapacityDate =
                             _appClock.TurkeyToday,
 
-                        Rating =
-                            0,
+                        Rating = 0,
 
-                        /*
-                         * Başvuru henüz onaylanmadığı için
-                         * üretici aktif kabul edilmez.
-                         */
-                        IsAvailable =
-                            false,
-
-                        IsApproved =
-                            false,
+                        IsAvailable = false,
+                        IsApproved = false,
 
                         VerificationStatus =
                             ProducerVerificationStatuses
@@ -154,10 +180,6 @@ namespace HomemadeFood.Api.Services
                 return true;
             }
 
-            /*
-             * Pending veya Approved durumundaki bir
-             * kullanıcı tekrar başvuru yapamaz.
-             */
             if (!string.Equals(
                     existingApplication
                         .VerificationStatus,
@@ -168,10 +190,6 @@ namespace HomemadeFood.Api.Services
                 return false;
             }
 
-            /*
-             * Reddedilmiş başvuru yeni bilgilerle
-             * güncellenerek tekrar Pending yapılır.
-             */
             existingApplication.BusinessName =
                 businessName;
 
@@ -181,11 +199,18 @@ namespace HomemadeFood.Api.Services
             existingApplication.Address =
                 address;
 
-            existingApplication.Latitude =
-                request.Latitude;
-
-            existingApplication.Longitude =
-                request.Longitude;
+            ApplyStructuredAddress(
+                existingApplication,
+                city,
+                district,
+                neighborhood,
+                street,
+                buildingNo,
+                floor,
+                apartmentNo,
+                addressNote,
+                request.Latitude,
+                request.Longitude);
 
             existingApplication.DailyCapacity =
                 request.DailyCapacity;
@@ -205,35 +230,17 @@ namespace HomemadeFood.Api.Services
             existingApplication.VerificationStatus =
                 ProducerVerificationStatuses.Pending;
 
-            /*
-             * Eski onay ve reddetme bilgileri temizlenir.
-             */
-            existingApplication.ApprovedAt =
-                null;
+            existingApplication.ApprovedAt = null;
+            existingApplication.ApprovedByAdminId = null;
 
-            existingApplication.ApprovedByAdminId =
-                null;
+            existingApplication.RejectedAt = null;
+            existingApplication.RejectedByAdminId = null;
 
-            existingApplication.RejectedAt =
-                null;
+            existingApplication.RejectionReason = null;
 
-            existingApplication.RejectedByAdminId =
-                null;
-
-            existingApplication.RejectionReason =
-                null;
-
-            /*
-             * CreatedAt bu yapıda en son başvuru
-             * tarihini temsil edecek şekilde yenilenir.
-             */
             existingApplication.CreatedAt =
                 _appClock.UtcNow;
 
-            /*
-             * ProducerProfile üzerinde concurrency
-             * token bulunduğu için sürüm artırılır.
-             */
             existingApplication.CapacityVersion++;
 
             try
@@ -245,11 +252,6 @@ namespace HomemadeFood.Api.Services
             }
             catch (DbUpdateConcurrencyException)
             {
-                /*
-                 * Başvuru aynı anda başka bir işlemle
-                 * değiştirilmişse güvenli biçimde
-                 * başarısız sonuç döndürülür.
-                 */
                 return false;
             }
         }
@@ -268,94 +270,94 @@ namespace HomemadeFood.Api.Services
                 return null;
             }
 
-            return new ProducerApplicationStatusResponse
-            {
-                ProducerProfileId =
-                    producerProfile.Id,
-
-                BusinessName =
-                    producerProfile.BusinessName,
-
-                Description =
-                    producerProfile.Description,
-
-                Address =
-                    producerProfile.Address,
-
-                Latitude =
-                    producerProfile.Latitude,
-
-                Longitude =
-                    producerProfile.Longitude,
-
-                DailyCapacity =
-                    producerProfile.DailyCapacity,
-
-                RemainingCapacity =
-                    producerProfile.RemainingCapacity,
-
-                IsAvailable =
-                    producerProfile.IsAvailable,
-
-                IsApproved =
-                    producerProfile.IsApproved,
-
-                VerificationStatus =
-                    producerProfile
-                        .VerificationStatus,
-
-                CreatedAt =
-                    producerProfile.CreatedAt,
-
-                ApprovedAt =
-                    producerProfile.ApprovedAt,
-
-                RejectedAt =
-                    producerProfile.RejectedAt,
-
-                RejectionReason =
-                    producerProfile.RejectionReason
-            };
+            return MapToResponse(
+                producerProfile);
         }
+
         public async Task<
-    ProducerApplicationStatusResponse?>
-    UpdateMyProfileAsync(
-        int userId,
-        UpdateProducerProfileRequest request)
+            ProducerApplicationStatusResponse?>
+            UpdateMyProfileAsync(
+                int userId,
+                UpdateProducerProfileRequest request)
         {
             var businessName =
-                request.BusinessName.Trim();
+                request.BusinessName?.Trim() ?? string.Empty;
 
             var description =
-                request.Description.Trim();
+                request.Description?.Trim() ?? string.Empty;
 
             var address =
-                request.Address.Trim();
+                request.Address?.Trim() ?? string.Empty;
 
-            /*
-             * DTO doğrulamasına ek olarak servis
-             * katmanında savunmacı kontroller yapılır.
-             */
-            if (string.IsNullOrWhiteSpace(
-                    businessName) ||
-                businessName.Length < 2 ||
-                businessName.Length > 150)
+            var city =
+                request.City?.Trim() ?? string.Empty;
+
+            var district =
+                request.District?.Trim() ?? string.Empty;
+
+            var neighborhood =
+                request.Neighborhood?.Trim() ?? string.Empty;
+
+            var street =
+                request.Street?.Trim() ?? string.Empty;
+
+            var buildingNo =
+                request.BuildingNo?.Trim() ?? string.Empty;
+
+            var floor =
+                NormalizeOptional(request.Floor);
+
+            var apartmentNo =
+                NormalizeOptional(request.ApartmentNo);
+
+            var addressNote =
+                NormalizeOptional(request.AddressNote);
+
+            if (!IsRequiredTextValid(
+                    businessName,
+                    2,
+                    150) ||
+                !IsRequiredTextValid(
+                    description,
+                    10,
+                    1000) ||
+                !IsRequiredTextValid(
+                    address,
+                    10,
+                    500) ||
+                !IsRequiredTextValid(
+                    city,
+                    1,
+                    100) ||
+                !IsRequiredTextValid(
+                    district,
+                    1,
+                    100) ||
+                !IsRequiredTextValid(
+                    neighborhood,
+                    1,
+                    120) ||
+                !IsRequiredTextValid(
+                    street,
+                    1,
+                    150) ||
+                !IsRequiredTextValid(
+                    buildingNo,
+                    1,
+                    30))
             {
                 return null;
             }
 
-            if (string.IsNullOrWhiteSpace(
-                    description) ||
-                description.Length < 10 ||
-                description.Length > 1000)
-            {
-                return null;
-            }
-
-            if (string.IsNullOrWhiteSpace(
-                    address) ||
-                address.Length < 10 ||
-                address.Length > 500)
+            if (!IsOptionalTextValid(
+                    floor,
+                    20) ||
+                !IsOptionalTextValid(
+                    apartmentNo,
+                    20) ||
+                !IsOptionalTextValid(
+                    addressNote,
+                    300))
             {
                 return null;
             }
@@ -387,14 +389,9 @@ namespace HomemadeFood.Api.Services
                 return null;
             }
 
-            /*
-             * Yalnızca Admin tarafından onaylanmış
-             * üretici profilleri güncellenebilir.
-             */
             if (!producerProfile.IsApproved ||
                 !string.Equals(
-                    producerProfile
-                        .VerificationStatus,
+                    producerProfile.VerificationStatus,
                     ProducerVerificationStatuses
                         .Approved,
                     StringComparison.OrdinalIgnoreCase))
@@ -407,11 +404,6 @@ namespace HomemadeFood.Api.Services
 
             int usedCapacity;
 
-            /*
-             * Kapasite tarihi bugüne ait değilse
-             * yeni gün başlamıştır ve kullanılmış
-             * kapasite sıfır kabul edilir.
-             */
             if (producerProfile.CapacityDate != today)
             {
                 usedCapacity = 0;
@@ -425,18 +417,6 @@ namespace HomemadeFood.Api.Services
                         producerProfile.RemainingCapacity);
             }
 
-            /*
-             * Günlük kapasite azaltılırsa daha önce
-             * kullanılmış kapasite kaybolmaz.
-             *
-             * Örnek:
-             * Eski kapasite: 50
-             * Kalan: 30
-             * Kullanılan: 20
-             *
-             * Yeni kapasite 40 yapılırsa
-             * yeni kalan kapasite 20 olur.
-             */
             var newRemainingCapacity =
                 Math.Max(
                     0,
@@ -452,11 +432,18 @@ namespace HomemadeFood.Api.Services
             producerProfile.Address =
                 address;
 
-            producerProfile.Latitude =
-                request.Latitude;
-
-            producerProfile.Longitude =
-                request.Longitude;
+            ApplyStructuredAddress(
+                producerProfile,
+                city,
+                district,
+                neighborhood,
+                street,
+                buildingNo,
+                floor,
+                apartmentNo,
+                addressNote,
+                request.Latitude,
+                request.Longitude);
 
             producerProfile.DailyCapacity =
                 request.DailyCapacity;
@@ -467,19 +454,9 @@ namespace HomemadeFood.Api.Services
             producerProfile.CapacityDate =
                 today;
 
-            /*
-             * IsAvailable üreticinin yeni sipariş
-             * almak isteyip istemediğini ifade eder.
-             * Kalan kapasite ayrıca sipariş
-             * oluşturma sırasında kontrol edilir.
-             */
             producerProfile.IsAvailable =
                 request.IsAvailable;
 
-            /*
-             * Optimistic concurrency sürümü
-             * her başarılı değişiklikte artırılır.
-             */
             producerProfile.CapacityVersion++;
 
             try
@@ -492,6 +469,39 @@ namespace HomemadeFood.Api.Services
                 return null;
             }
 
+            return MapToResponse(
+                producerProfile);
+        }
+
+        private static void ApplyStructuredAddress(
+            ProducerProfile producerProfile,
+            string city,
+            string district,
+            string neighborhood,
+            string street,
+            string buildingNo,
+            string? floor,
+            string? apartmentNo,
+            string? addressNote,
+            double latitude,
+            double longitude)
+        {
+            producerProfile.City = city;
+            producerProfile.District = district;
+            producerProfile.Neighborhood = neighborhood;
+            producerProfile.Street = street;
+            producerProfile.BuildingNo = buildingNo;
+            producerProfile.Floor = floor;
+            producerProfile.ApartmentNo = apartmentNo;
+            producerProfile.AddressNote = addressNote;
+            producerProfile.Latitude = latitude;
+            producerProfile.Longitude = longitude;
+        }
+
+        private static ProducerApplicationStatusResponse
+            MapToResponse(
+                ProducerProfile producerProfile)
+        {
             return new ProducerApplicationStatusResponse
             {
                 ProducerProfileId =
@@ -505,6 +515,30 @@ namespace HomemadeFood.Api.Services
 
                 Address =
                     producerProfile.Address,
+
+                City =
+                    producerProfile.City,
+
+                District =
+                    producerProfile.District,
+
+                Neighborhood =
+                    producerProfile.Neighborhood,
+
+                Street =
+                    producerProfile.Street,
+
+                BuildingNo =
+                    producerProfile.BuildingNo,
+
+                Floor =
+                    producerProfile.Floor,
+
+                ApartmentNo =
+                    producerProfile.ApartmentNo,
+
+                AddressNote =
+                    producerProfile.AddressNote,
 
                 Latitude =
                     producerProfile.Latitude,
@@ -539,6 +573,37 @@ namespace HomemadeFood.Api.Services
                 RejectionReason =
                     producerProfile.RejectionReason
             };
+        }
+
+        private static bool IsRequiredTextValid(
+            string value,
+            int minimumLength,
+            int maximumLength)
+        {
+            return !string.IsNullOrWhiteSpace(
+                       value) &&
+                   value.Length >= minimumLength &&
+                   value.Length <= maximumLength;
+        }
+
+        private static string? NormalizeOptional(
+            string? value)
+        {
+            var trimmed =
+                value?.Trim();
+
+            return string.IsNullOrWhiteSpace(
+                trimmed)
+                ? null
+                : trimmed;
+        }
+
+        private static bool IsOptionalTextValid(
+            string? value,
+            int maximumLength)
+        {
+            return value == null ||
+                   value.Length <= maximumLength;
         }
     }
 }

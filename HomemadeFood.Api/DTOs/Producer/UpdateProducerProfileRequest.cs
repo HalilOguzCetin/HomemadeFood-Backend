@@ -4,9 +4,7 @@ namespace HomemadeFood.Api.DTOs.Producer
 {
     public class UpdateProducerProfileRequest
     {
-        [Required(
-            ErrorMessage =
-                "İşletme adı zorunludur.")]
+        [Required(ErrorMessage = "İşletme adı zorunludur.")]
         [StringLength(
             150,
             MinimumLength = 2,
@@ -15,9 +13,7 @@ namespace HomemadeFood.Api.DTOs.Producer
         public string BusinessName { get; set; } =
             string.Empty;
 
-        [Required(
-            ErrorMessage =
-                "İşletme açıklaması zorunludur.")]
+        [Required(ErrorMessage = "İşletme açıklaması zorunludur.")]
         [StringLength(
             1000,
             MinimumLength = 10,
@@ -26,9 +22,7 @@ namespace HomemadeFood.Api.DTOs.Producer
         public string Description { get; set; } =
             string.Empty;
 
-        [Required(
-            ErrorMessage =
-                "İşletme adresi zorunludur.")]
+        [Required(ErrorMessage = "İşletme adresi zorunludur.")]
         [StringLength(
             500,
             MinimumLength = 10,
@@ -36,6 +30,64 @@ namespace HomemadeFood.Api.DTOs.Producer
                 "Adres 10 ile 500 karakter arasında olmalıdır.")]
         public string Address { get; set; } =
             string.Empty;
+
+        [Required(ErrorMessage = "İl bilgisi zorunludur.")]
+        [StringLength(
+            100,
+            ErrorMessage =
+                "İl bilgisi en fazla 100 karakter olabilir.")]
+        public string City { get; set; } =
+            string.Empty;
+
+        [Required(ErrorMessage = "İlçe bilgisi zorunludur.")]
+        [StringLength(
+            100,
+            ErrorMessage =
+                "İlçe bilgisi en fazla 100 karakter olabilir.")]
+        public string District { get; set; } =
+            string.Empty;
+
+        [Required(ErrorMessage = "Mahalle bilgisi zorunludur.")]
+        [StringLength(
+            120,
+            ErrorMessage =
+                "Mahalle bilgisi en fazla 120 karakter olabilir.")]
+        public string Neighborhood { get; set; } =
+            string.Empty;
+
+        [Required(ErrorMessage = "Cadde veya sokak bilgisi zorunludur.")]
+        [StringLength(
+            150,
+            ErrorMessage =
+                "Cadde veya sokak bilgisi en fazla 150 karakter olabilir.")]
+        public string Street { get; set; } =
+            string.Empty;
+
+        [Required(ErrorMessage = "Bina numarası zorunludur.")]
+        [StringLength(
+            30,
+            ErrorMessage =
+                "Bina numarası en fazla 30 karakter olabilir.")]
+        public string BuildingNo { get; set; } =
+            string.Empty;
+
+        [StringLength(
+            20,
+            ErrorMessage =
+                "Kat bilgisi en fazla 20 karakter olabilir.")]
+        public string? Floor { get; set; }
+
+        [StringLength(
+            20,
+            ErrorMessage =
+                "Daire bilgisi en fazla 20 karakter olabilir.")]
+        public string? ApartmentNo { get; set; }
+
+        [StringLength(
+            300,
+            ErrorMessage =
+                "Adres tarifi en fazla 300 karakter olabilir.")]
+        public string? AddressNote { get; set; }
 
         [Range(
             -90,

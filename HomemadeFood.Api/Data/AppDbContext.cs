@@ -146,6 +146,35 @@ namespace HomemadeFood.Api.Data
                     .HasMaxLength(500)
                     .IsRequired();
 
+                entity.Property(x => x.City)
+                    .HasMaxLength(100)
+                    .IsRequired();
+
+                entity.Property(x => x.District)
+                    .HasMaxLength(100)
+                    .IsRequired();
+
+                entity.Property(x => x.Neighborhood)
+                    .HasMaxLength(120)
+                    .IsRequired();
+
+                entity.Property(x => x.Street)
+                    .HasMaxLength(150)
+                    .IsRequired();
+
+                entity.Property(x => x.BuildingNo)
+                    .HasMaxLength(30)
+                    .IsRequired();
+
+                entity.Property(x => x.Floor)
+                    .HasMaxLength(20);
+
+                entity.Property(x => x.ApartmentNo)
+                    .HasMaxLength(20);
+
+                entity.Property(x => x.AddressNote)
+                    .HasMaxLength(300);
+
                 entity.Property(x => x.VerificationStatus)
                     .HasMaxLength(30)
                     .IsRequired();
