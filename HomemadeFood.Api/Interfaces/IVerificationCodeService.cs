@@ -13,5 +13,9 @@
         bool VerifySecret(
             string secret,
             string expectedHash);
+
+        bool VerifyTarget(
+            string target,
+            string expectedHash);
     }
 }

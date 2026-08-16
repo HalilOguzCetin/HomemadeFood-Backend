@@ -110,6 +110,44 @@ namespace HomemadeFood.Api.Infrastructure
                     expectedBytes);
         }
 
+        public bool VerifyTarget(
+            string target,
+            string expectedHash)
+        {
+            if (
+                string.IsNullOrWhiteSpace(target) ||
+                string.IsNullOrWhiteSpace(expectedHash)
+            )
+            {
+                return false;
+            }
+
+            byte[] expectedBytes;
+
+            try
+            {
+                expectedBytes =
+                    Convert.FromBase64String(
+                        expectedHash);
+            }
+            catch (FormatException)
+            {
+                return false;
+            }
+
+            var actualHash =
+                HashTarget(target);
+
+            var actualBytes =
+                Convert.FromBase64String(
+                    actualHash);
+
+            return CryptographicOperations
+                .FixedTimeEquals(
+                    actualBytes,
+                    expectedBytes);
+        }
+
         private string ComputeHmac(
             string value)
         {

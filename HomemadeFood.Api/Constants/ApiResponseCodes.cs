@@ -26,6 +26,13 @@
         public const string OrderCreationFailed =
             "ORDER_CREATION_FAILED";
 
+        /*
+         * Authenticated Customer sipariş oluşturabilir;
+         * ancak sipariş için doğrulanmış telefon zorunludur.
+         */
+        public const string PhoneVerificationRequired =
+            "PHONE_VERIFICATION_REQUIRED";
+
         public const string OrderNotFound =
             "ORDER_NOT_FOUND";
 
@@ -136,6 +143,19 @@
 
         public const string PasswordResetFailed =
             "PASSWORD_RESET_FAILED";
+
+        public const string PhoneVerificationCodeRequested =
+            "PHONE_VERIFICATION_CODE_REQUESTED";
+
+        public const string PhoneVerificationCodeRequestFailed =
+            "PHONE_VERIFICATION_CODE_REQUEST_FAILED";
+
+        public const string PhoneVerified =
+            "PHONE_VERIFIED";
+
+        public const string PhoneVerificationFailed =
+            "PHONE_VERIFICATION_FAILED";
+
         public const string GeocodingNotFound =
     "GEOCODING_NOT_FOUND";
 

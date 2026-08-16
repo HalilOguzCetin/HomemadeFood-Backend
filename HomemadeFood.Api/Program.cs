@@ -327,6 +327,14 @@ builder.Services.AddSingleton<
     IEmailSender,
     DevelopmentEmailSender>();
 
+builder.Services.AddSingleton<
+    IPhoneNumberNormalizer,
+    TurkishPhoneNumberNormalizer>();
+
+builder.Services.AddSingleton<
+    IPhoneVerificationSender,
+    DevelopmentPhoneVerificationSender>();
+
 // ---------------------------------------------------------
 // GLOBAL HATA YÖNETÝMÝ
 // ---------------------------------------------------------
@@ -755,6 +763,76 @@ builder.Services.AddRateLimiter(
 
                                 AutoReplenishment =
                                     true
+                            }));
+
+        options.AddPolicy(
+            RateLimitPolicies
+                .PhoneVerificationRequest,
+
+            httpContext =>
+                RateLimitPartition
+                    .GetFixedWindowLimiter(
+                        partitionKey:
+                            httpContext.User
+                                .FindFirstValue(
+                                    ClaimTypes
+                                        .NameIdentifier)
+                            ?? httpContext.Connection
+                                .RemoteIpAddress
+                                ?.ToString()
+                            ?? "unknown",
+
+                        factory: _ =>
+                            new FixedWindowRateLimiterOptions
+                            {
+                                PermitLimit = 5,
+
+                                Window =
+                                    TimeSpan
+                                        .FromMinutes(10),
+
+                                QueueLimit = 0,
+
+                                QueueProcessingOrder =
+                                    QueueProcessingOrder
+                                        .OldestFirst,
+
+                                AutoReplenishment = true
+                            }));
+
+        options.AddPolicy(
+            RateLimitPolicies
+                .PhoneVerificationConfirm,
+
+            httpContext =>
+                RateLimitPartition
+                    .GetFixedWindowLimiter(
+                        partitionKey:
+                            httpContext.User
+                                .FindFirstValue(
+                                    ClaimTypes
+                                        .NameIdentifier)
+                            ?? httpContext.Connection
+                                .RemoteIpAddress
+                                ?.ToString()
+                            ?? "unknown",
+
+                        factory: _ =>
+                            new FixedWindowRateLimiterOptions
+                            {
+                                PermitLimit = 10,
+
+                                Window =
+                                    TimeSpan
+                                        .FromMinutes(10),
+
+                                QueueLimit = 0,
+
+                                QueueProcessingOrder =
+                                    QueueProcessingOrder
+                                        .OldestFirst,
+
+                                AutoReplenishment = true
                             }));
 
         options.OnRejected =

@@ -4,6 +4,9 @@ namespace HomemadeFood.Api.Interfaces
 {
     public interface IOrderService
     {
+        Task<bool> IsPhoneVerifiedForOrderAsync(
+            int customerId);
+
         Task<OrderResponse?> CreateOrderAsync(
             int customerId,
             CreateOrderRequest request);

@@ -33,6 +33,31 @@ namespace HomemadeFood.Api.Controllers
                         "Kullanıcı bilgisi alınamadı."));
             }
 
+            /*
+             * Telefon doğrulaması bir UI tercihi değil,
+             * server-side sipariş iş kuralıdır.
+             *
+             * Android bunu önceden kontrol edecek; fakat
+             * API doğrudan çağrılsa bile sipariş burada
+             * engellenir.
+             */
+            var hasVerifiedPhone =
+                await _orderService
+                    .IsPhoneVerifiedForOrderAsync(
+                        customerId);
+
+            if (!hasVerifiedPhone)
+            {
+                return StatusCode(
+                    StatusCodes.Status403Forbidden,
+
+                    ApiResponse<OrderResponse>.Fail(
+                        ApiResponseCodes
+                            .PhoneVerificationRequired,
+
+                        "Sipariş oluşturmak için telefon numaranızı doğrulamanız gerekir."));
+            }
+
             var order =
                 await _orderService.CreateOrderAsync(
                     customerId,

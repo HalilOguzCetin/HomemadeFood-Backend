@@ -329,6 +329,179 @@ namespace HomemadeFood.Api.Controllers
         [Authorize(
             Roles =
                 UserRoles.Customer)]
+        [EnableRateLimiting(
+            RateLimitPolicies
+                .PhoneVerificationRequest)]
+        [HttpPost(
+            "phone/request-code")]
+        public async Task<IActionResult>
+            RequestPhoneVerification(
+                [FromBody]
+                RequestPhoneVerificationRequest request)
+        {
+            var userIdValue =
+                User.FindFirstValue(
+                    ClaimTypes
+                        .NameIdentifier);
+
+            if (!int.TryParse(
+                    userIdValue,
+                    out var userId))
+            {
+                return Unauthorized(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes
+                            .Unauthorized,
+
+                        "Kullanıcı bilgisi alınamadı."));
+            }
+
+            var result =
+                await _authService
+                    .RequestPhoneVerificationAsync(
+                        userId,
+                        request);
+
+            if (!result)
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes
+                            .PhoneVerificationCodeRequestFailed,
+
+                        "Telefon doğrulama kodu gönderilemedi. Numara geçersiz, kullanımda veya kısa süre önce kod gönderilmiş olabilir."));
+            }
+
+            return Ok(
+                ApiResponse<object>.Succeed(
+                    new
+                    {
+                        phone =
+                            request.Phone.Trim()
+                    },
+
+                    "Telefon doğrulama kodu gönderildi.",
+
+                    ApiResponseCodes
+                        .PhoneVerificationCodeRequested));
+        }
+
+        [Authorize(
+            Roles =
+                UserRoles.Customer)]
+        [EnableRateLimiting(
+            RateLimitPolicies
+                .PhoneVerificationConfirm)]
+        [HttpPost("phone/verify")]
+        public async Task<IActionResult>
+            VerifyPhone(
+                [FromBody]
+                VerifyPhoneRequest request)
+        {
+            var userIdValue =
+                User.FindFirstValue(
+                    ClaimTypes
+                        .NameIdentifier);
+
+            if (!int.TryParse(
+                    userIdValue,
+                    out var userId))
+            {
+                return Unauthorized(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes
+                            .Unauthorized,
+
+                        "Kullanıcı bilgisi alınamadı."));
+            }
+
+            var profile =
+                await _authService
+                    .VerifyPhoneAsync(
+                        userId,
+                        request);
+
+            if (profile == null)
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes
+                            .PhoneVerificationFailed,
+
+                        "Telefon doğrulama kodu geçersiz, süresi dolmuş veya numara kullanılamıyor."));
+            }
+
+            return Ok(
+                ApiResponse<AuthProfileResponse>
+                    .Succeed(
+                        profile,
+
+                        "Telefon numarası başarıyla doğrulandı.",
+
+                        ApiResponseCodes
+                            .PhoneVerified));
+        }
+
+        /*
+         * C2 profil düzenleme.
+         *
+         * E-posta ve telefon burada doğrudan
+         * değiştirilemez. Bunlar doğrulama
+         * challenge akışlarıyla ayrı tutulur.
+         */
+        [Authorize(
+            Roles =
+                UserRoles.Customer)]
+        [HttpPut("profile")]
+        public async Task<IActionResult>
+            UpdateProfile(
+                [FromBody]
+                UpdateAuthProfileRequest request)
+        {
+            var userIdValue =
+                User.FindFirstValue(
+                    ClaimTypes
+                        .NameIdentifier);
+
+            if (!int.TryParse(
+                    userIdValue,
+                    out var userId))
+            {
+                return Unauthorized(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes
+                            .Unauthorized,
+
+                        "Kullanıcı bilgisi alınamadı."));
+            }
+
+            var profile =
+                await _authService
+                    .UpdateProfileAsync(
+                        userId,
+                        request);
+
+            if (profile == null)
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes
+                            .ValidationError,
+
+                        "Profil bilgileri güncellenemedi."));
+            }
+
+            return Ok(
+                ApiResponse<AuthProfileResponse>
+                    .Succeed(
+                        profile,
+
+                        "Profil bilgileri başarıyla güncellendi."));
+        }
+
+        [Authorize(
+            Roles =
+                UserRoles.Customer)]
         [HttpGet("customer-area")]
         public IActionResult
             CustomerArea()

@@ -16,6 +16,29 @@
         public string Phone { get; set; } =
             string.Empty;
 
+        /*
+         * Telefon karşılaştırmaları ve uniqueness için
+         * canonical biçim: +905XXXXXXXXX.
+         * Eski / doğrulanmamış hesaplarda null olabilir.
+         */
+        public string? NormalizedPhone
+        {
+            get;
+            set;
+        }
+
+        public bool IsPhoneVerified
+        {
+            get;
+            set;
+        } = false;
+
+        public DateTime? PhoneVerifiedAt
+        {
+            get;
+            set;
+        }
+
         public string Role { get; set; } =
             "Customer";
 

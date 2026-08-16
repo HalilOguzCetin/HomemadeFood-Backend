@@ -77,6 +77,16 @@ namespace HomemadeFood.Api.Data
                     .HasMaxLength(20)
                     .IsRequired();
 
+                entity.Property(x => x.NormalizedPhone)
+                    .HasMaxLength(20);
+
+                entity.HasIndex(x => x.NormalizedPhone)
+                    .IsUnique();
+
+                entity.Property(x => x.IsPhoneVerified)
+                    .IsRequired()
+                    .HasDefaultValue(false);
+
                 entity.Property(x => x.Role)
                     .HasMaxLength(30)
                     .IsRequired();

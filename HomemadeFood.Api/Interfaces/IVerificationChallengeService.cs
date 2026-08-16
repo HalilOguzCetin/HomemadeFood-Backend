@@ -26,6 +26,17 @@ namespace HomemadeFood.Api.Interfaces
          * ediyorsa null döner.
          */
         Task<string?>
+            PreparePhoneVerificationAsync(
+                User user,
+                string normalizedPhone);
+
+        Task<bool>
+            VerifyPhoneAsync(
+                User user,
+                string normalizedPhone,
+                string code);
+
+        Task<string?>
             PreparePasswordResetAsync(
                 string email);
 

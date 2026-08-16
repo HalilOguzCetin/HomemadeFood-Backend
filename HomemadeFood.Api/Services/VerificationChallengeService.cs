@@ -17,11 +17,19 @@ namespace HomemadeFood.Api.Services
                 TimeSpan.FromMinutes(10);
 
         private static readonly TimeSpan
+            PhoneVerificationLifetime =
+                TimeSpan.FromMinutes(10);
+
+        private static readonly TimeSpan
             EmailVerificationResendCooldown =
                 TimeSpan.FromMinutes(1);
 
         private static readonly TimeSpan
             PasswordResetResendCooldown =
+                TimeSpan.FromMinutes(1);
+
+        private static readonly TimeSpan
+            PhoneVerificationResendCooldown =
                 TimeSpan.FromMinutes(1);
 
         private const int
@@ -30,6 +38,10 @@ namespace HomemadeFood.Api.Services
 
         private const int
             MaxPasswordResetAttempts =
+                5;
+
+        private const int
+            MaxPhoneVerificationAttempts =
                 5;
 
         private readonly
@@ -347,6 +359,274 @@ namespace HomemadeFood.Api.Services
                 .SaveChangesAsync();
 
             return true;
+        }
+
+        public async Task<string?>
+            PreparePhoneVerificationAsync(
+                User user,
+                string normalizedPhone)
+        {
+            if (
+                user == null ||
+                !user.IsActive ||
+                string.IsNullOrWhiteSpace(
+                    normalizedPhone)
+            )
+            {
+                return null;
+            }
+
+            if (
+                user.IsPhoneVerified &&
+                string.Equals(
+                    user.NormalizedPhone,
+                    normalizedPhone,
+                    StringComparison.Ordinal)
+            )
+            {
+                return null;
+            }
+
+            var phoneOwner =
+                await _userRepository
+                    .GetByNormalizedPhoneAsync(
+                        normalizedPhone);
+
+            if (
+                phoneOwner != null &&
+                phoneOwner.Id != user.Id
+            )
+            {
+                return null;
+            }
+
+            var now =
+                _appClock.UtcNow;
+
+            var challengeType =
+                ResolvePhoneChallengeType(
+                    user,
+                    normalizedPhone);
+
+            var currentChallenge =
+                await _verificationChallengeRepository
+                    .GetLatestActiveAsync(
+                        user.Id,
+                        challengeType,
+                        now);
+
+            if (
+                currentChallenge != null &&
+                now - currentChallenge.CreatedAt <
+                    PhoneVerificationResendCooldown
+            )
+            {
+                return null;
+            }
+
+            await _verificationChallengeRepository
+                .ExpireActiveAsync(
+                    user.Id,
+                    VerificationChallengeTypes
+                        .PhoneVerification,
+                    now);
+
+            await _verificationChallengeRepository
+                .ExpireActiveAsync(
+                    user.Id,
+                    VerificationChallengeTypes
+                        .PhoneChange,
+                    now);
+
+            var verificationCode =
+                _verificationCodeService
+                    .GenerateSixDigitCode();
+
+            var challenge =
+                new VerificationChallenge
+                {
+                    UserId = user.Id,
+                    User = user,
+                    Type = challengeType,
+
+                    TargetHash =
+                        _verificationCodeService
+                            .HashTarget(
+                                normalizedPhone),
+
+                    SecretHash =
+                        _verificationCodeService
+                            .HashSecret(
+                                verificationCode),
+
+                    ExpiresAt =
+                        now.Add(
+                            PhoneVerificationLifetime),
+
+                    UsedAt = null,
+                    AttemptCount = 0,
+                    CreatedAt = now
+                };
+
+            await _verificationChallengeRepository
+                .AddAsync(
+                    challenge);
+
+            await _verificationChallengeRepository
+                .SaveChangesAsync();
+
+            return verificationCode;
+        }
+
+        public async Task<bool>
+            VerifyPhoneAsync(
+                User user,
+                string normalizedPhone,
+                string code)
+        {
+            if (
+                user == null ||
+                !user.IsActive ||
+                string.IsNullOrWhiteSpace(
+                    normalizedPhone) ||
+                string.IsNullOrWhiteSpace(code)
+            )
+            {
+                return false;
+            }
+
+            var normalizedCode =
+                code.Trim();
+
+            var now =
+                _appClock.UtcNow;
+
+            var challengeType =
+                ResolvePhoneChallengeType(
+                    user,
+                    normalizedPhone);
+
+            var challenge =
+                await _verificationChallengeRepository
+                    .GetLatestActiveAsync(
+                        user.Id,
+                        challengeType,
+                        now);
+
+            if (challenge == null)
+            {
+                return false;
+            }
+
+            if (
+                challenge.AttemptCount >=
+                    MaxPhoneVerificationAttempts
+            )
+            {
+                challenge.ExpiresAt =
+                    now;
+
+                await _verificationChallengeRepository
+                    .SaveChangesAsync();
+
+                return false;
+            }
+
+            var isTargetValid =
+                _verificationCodeService
+                    .VerifyTarget(
+                        normalizedPhone,
+                        challenge.TargetHash);
+
+            var isCodeValid =
+                _verificationCodeService
+                    .VerifySecret(
+                        normalizedCode,
+                        challenge.SecretHash);
+
+            if (
+                !isTargetValid ||
+                !isCodeValid
+            )
+            {
+                challenge.AttemptCount++;
+
+                if (
+                    challenge.AttemptCount >=
+                        MaxPhoneVerificationAttempts
+                )
+                {
+                    challenge.ExpiresAt =
+                        now;
+                }
+
+                await _verificationChallengeRepository
+                    .SaveChangesAsync();
+
+                return false;
+            }
+
+            var phoneOwner =
+                await _userRepository
+                    .GetByNormalizedPhoneAsync(
+                        normalizedPhone);
+
+            if (
+                phoneOwner != null &&
+                phoneOwner.Id != user.Id
+            )
+            {
+                challenge.ExpiresAt =
+                    now;
+
+                await _verificationChallengeRepository
+                    .SaveChangesAsync();
+
+                return false;
+            }
+
+            user.Phone =
+                normalizedPhone;
+
+            user.NormalizedPhone =
+                normalizedPhone;
+
+            user.IsPhoneVerified =
+                true;
+
+            user.PhoneVerifiedAt =
+                now;
+
+            challenge.UsedAt =
+                now;
+
+            await _verificationChallengeRepository
+                .SaveChangesAsync();
+
+            return true;
+        }
+
+        private static string
+            ResolvePhoneChallengeType(
+                User user,
+                string normalizedPhone)
+        {
+            if (
+                user.IsPhoneVerified &&
+                !string.IsNullOrWhiteSpace(
+                    user.NormalizedPhone) &&
+                !string.Equals(
+                    user.NormalizedPhone,
+                    normalizedPhone,
+                    StringComparison.Ordinal)
+            )
+            {
+                return VerificationChallengeTypes
+                    .PhoneChange;
+            }
+
+            return VerificationChallengeTypes
+                .PhoneVerification;
         }
 
         public async Task<string?>

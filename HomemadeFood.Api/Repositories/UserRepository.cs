@@ -39,6 +39,24 @@ namespace HomemadeFood.Api.Repositories
                     x.Id == userId);
         }
 
+        public async Task<User?>
+            GetByNormalizedPhoneAsync(
+                string normalizedPhone)
+        {
+            if (string.IsNullOrWhiteSpace(
+                    normalizedPhone))
+            {
+                return null;
+            }
+
+            return await _context.Users
+                .Include(user =>
+                    user.ProducerProfile)
+                .FirstOrDefaultAsync(user =>
+                    user.NormalizedPhone ==
+                        normalizedPhone);
+        }
+
         public async Task<List<User>> GetUsersAsync(
             string? role,
             bool? isActive,

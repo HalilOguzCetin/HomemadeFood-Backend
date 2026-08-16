@@ -10,6 +10,9 @@ namespace HomemadeFood.Api.Interfaces
         Task<User?> GetByIdAsync(
             int userId);
 
+        Task<User?> GetByNormalizedPhoneAsync(
+            string normalizedPhone);
+
         Task<List<User>> GetUsersAsync(
             string? role,
             bool? isActive,

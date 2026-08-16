@@ -16,5 +16,13 @@
         public const string
             PasswordResetConfirm =
                 "password-reset-confirm";
+
+        public const string
+            PhoneVerificationRequest =
+                "phone-verification-request";
+
+        public const string
+            PhoneVerificationConfirm =
+                "phone-verification-confirm";
     }
 }

@@ -39,10 +39,59 @@ namespace HomemadeFood.Api.Services
             _dbContext = dbContext;
         }
 
+        public async Task<bool>
+            IsPhoneVerifiedForOrderAsync(
+                int customerId)
+        {
+            if (customerId <= 0)
+            {
+                return false;
+            }
+
+            /*
+             * Sipariş iş kuralı:
+             * yalnız aktif Customer + gerçekten doğrulanmış
+             * canonical telefon bilgisi olan hesap sipariş
+             * oluşturabilir.
+             *
+             * Sadece IsPhoneVerified=true kontrolüyle
+             * yetinmiyoruz; doğrulama zamanını ve normalize
+             * telefon değerini de tutarlı bekliyoruz.
+             */
+            return await _dbContext.Users
+                .AsNoTracking()
+                .AnyAsync(user =>
+                    user.Id == customerId &&
+                    user.IsActive &&
+                    user.Role == UserRoles.Customer &&
+                    user.IsPhoneVerified &&
+                    user.PhoneVerifiedAt.HasValue &&
+                    user.NormalizedPhone != null &&
+                    user.NormalizedPhone != "");
+        }
+
         public async Task<OrderResponse?> CreateOrderAsync(
             int customerId,
             CreateOrderRequest request)
         {
+            /*
+             * Controller özel PHONE_VERIFICATION_REQUIRED
+             * response'u üretir.
+             *
+             * Buna rağmen iş kuralını service içinde de
+             * yeniden kontrol ediyoruz. Böylece service
+             * başka bir yerden çağrılsa dahi kural
+             * atlanamaz.
+             */
+            var hasVerifiedPhone =
+                await IsPhoneVerifiedForOrderAsync(
+                    customerId);
+
+            if (!hasVerifiedPhone)
+            {
+                return null;
+            }
+
             // Gönderilen adres gerçekten giriş yapan
             // müşteriye ait mi?
             var address =

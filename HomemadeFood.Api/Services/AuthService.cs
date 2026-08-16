@@ -25,6 +25,14 @@ namespace HomemadeFood.Api.Services
             IEmailSender
             _emailSender;
 
+        private readonly
+            IPhoneVerificationSender
+            _phoneVerificationSender;
+
+        private readonly
+            IPhoneNumberNormalizer
+            _phoneNumberNormalizer;
+
         private const int MaxFailedLoginAttempts =
             5;
 
@@ -44,7 +52,11 @@ namespace HomemadeFood.Api.Services
             IAppClock appClock,
             IVerificationChallengeService
                 verificationChallengeService,
-            IEmailSender emailSender)
+            IEmailSender emailSender,
+            IPhoneVerificationSender
+                phoneVerificationSender,
+            IPhoneNumberNormalizer
+                phoneNumberNormalizer)
         {
             _userRepository =
                 userRepository;
@@ -60,6 +72,12 @@ namespace HomemadeFood.Api.Services
 
             _emailSender =
                 emailSender;
+
+            _phoneVerificationSender =
+                phoneVerificationSender;
+
+            _phoneNumberNormalizer =
+                phoneNumberNormalizer;
         }
 
         public async Task
@@ -368,6 +386,135 @@ namespace HomemadeFood.Api.Services
                     response);
         }
 
+        public async Task<bool>
+            RequestPhoneVerificationAsync(
+                int userId,
+                RequestPhoneVerificationRequest request)
+        {
+            if (
+                userId <= 0 ||
+                request == null ||
+                !_phoneNumberNormalizer
+                    .TryNormalizeTurkishMobile(
+                        request.Phone,
+                        out var normalizedPhone)
+            )
+            {
+                return false;
+            }
+
+            var user =
+                await _userRepository
+                    .GetByIdAsync(
+                        userId);
+
+            if (
+                user == null ||
+                !user.IsActive ||
+                !string.Equals(
+                    user.Role,
+                    UserRoles.Customer,
+                    StringComparison.Ordinal)
+            )
+            {
+                return false;
+            }
+
+            var phoneOwner =
+                await _userRepository
+                    .GetByNormalizedPhoneAsync(
+                        normalizedPhone);
+
+            if (
+                phoneOwner != null &&
+                phoneOwner.Id != user.Id
+            )
+            {
+                return false;
+            }
+
+            var verificationCode =
+                await _verificationChallengeService
+                    .PreparePhoneVerificationAsync(
+                        user,
+                        normalizedPhone);
+
+            if (verificationCode == null)
+            {
+                return false;
+            }
+
+            await _phoneVerificationSender
+                .SendPhoneVerificationCodeAsync(
+                    normalizedPhone,
+                    verificationCode);
+
+            return true;
+        }
+
+        public async Task<AuthProfileResponse?>
+            VerifyPhoneAsync(
+                int userId,
+                VerifyPhoneRequest request)
+        {
+            if (
+                userId <= 0 ||
+                request == null ||
+                !_phoneNumberNormalizer
+                    .TryNormalizeTurkishMobile(
+                        request.Phone,
+                        out var normalizedPhone)
+            )
+            {
+                return null;
+            }
+
+            var user =
+                await _userRepository
+                    .GetByIdAsync(
+                        userId);
+
+            if (
+                user == null ||
+                !user.IsActive ||
+                !string.Equals(
+                    user.Role,
+                    UserRoles.Customer,
+                    StringComparison.Ordinal)
+            )
+            {
+                return null;
+            }
+
+            var phoneOwner =
+                await _userRepository
+                    .GetByNormalizedPhoneAsync(
+                        normalizedPhone);
+
+            if (
+                phoneOwner != null &&
+                phoneOwner.Id != user.Id
+            )
+            {
+                return null;
+            }
+
+            var verified =
+                await _verificationChallengeService
+                    .VerifyPhoneAsync(
+                        user,
+                        normalizedPhone,
+                        request.Code);
+
+            if (!verified)
+            {
+                return null;
+            }
+
+            return MapToProfileResponse(
+                user);
+        }
+
         public async Task<AuthProfileResponse?>
             GetProfileAsync(
                 int userId)
@@ -390,6 +537,73 @@ namespace HomemadeFood.Api.Services
                 return null;
             }
 
+            return MapToProfileResponse(
+                user);
+        }
+
+        public async Task<AuthProfileResponse?>
+            UpdateProfileAsync(
+                int userId,
+                UpdateAuthProfileRequest request)
+        {
+            if (
+                userId <= 0 ||
+                request == null
+            )
+            {
+                return null;
+            }
+
+            var normalizedFullName =
+                request.FullName
+                    .Trim();
+
+            /*
+             * DataAnnotations normal istekleri korur.
+             * Whitespace-only değerinin validasyondan
+             * kaçmasını ayrıca engelliyoruz.
+             */
+            if (
+                string.IsNullOrWhiteSpace(
+                    normalizedFullName) ||
+                normalizedFullName.Length < 2 ||
+                normalizedFullName.Length > 100
+            )
+            {
+                return null;
+            }
+
+            var user =
+                await _userRepository
+                    .GetByIdAsync(
+                        userId);
+
+            if (
+                user == null ||
+                !user.IsActive ||
+                !string.Equals(
+                    user.Role,
+                    UserRoles.Customer,
+                    StringComparison.Ordinal)
+            )
+            {
+                return null;
+            }
+
+            user.FullName =
+                normalizedFullName;
+
+            await _userRepository
+                .SaveChangesAsync();
+
+            return MapToProfileResponse(
+                user);
+        }
+
+        private static AuthProfileResponse
+            MapToProfileResponse(
+                User user)
+        {
             return new AuthProfileResponse
             {
                 UserId =
@@ -400,6 +614,21 @@ namespace HomemadeFood.Api.Services
 
                 Email =
                     user.Email,
+
+                Phone =
+                    user.Phone,
+
+                IsPhoneVerified =
+                    user.IsPhoneVerified,
+
+                PhoneVerifiedAt =
+                    user.PhoneVerifiedAt,
+
+                IsEmailVerified =
+                    user.IsEmailVerified,
+
+                EmailVerifiedAt =
+                    user.EmailVerifiedAt,
 
                 Role =
                     user.Role,
