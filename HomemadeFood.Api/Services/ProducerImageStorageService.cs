@@ -1,4 +1,5 @@
-﻿using HomemadeFood.Api.Interfaces;
+﻿using HomemadeFood.Api.Helpers;
+using HomemadeFood.Api.Interfaces;
 using Microsoft.AspNetCore.Http;
 
 namespace HomemadeFood.Api.Services
@@ -38,6 +39,17 @@ namespace HomemadeFood.Api.Services
                 await DetectAndValidateImageTypeAsync(
                     image,
                     cancellationToken);
+
+            var dimensions =
+                await ImageMetadataInspector
+                    .ReadDimensionsAsync(
+                        image,
+                        cancellationToken);
+
+            ImageMetadataInspector
+                .EnsureMinimumResolution(
+                    dimensions,
+                    "İşletme görseli");
 
             var webRootPath =
                 string.IsNullOrWhiteSpace(

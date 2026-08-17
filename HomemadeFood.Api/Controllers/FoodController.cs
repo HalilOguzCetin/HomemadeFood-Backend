@@ -197,9 +197,11 @@ namespace HomemadeFood.Api.Controllers
         }
 
         [HttpPut("{id:int}")]
+        [Consumes("multipart/form-data")]
+        [RequestSizeLimit(6 * 1024 * 1024)]
         public async Task<IActionResult> UpdateFood(
             int id,
-            [FromBody] UpdateFoodRequest request)
+            [FromForm] UpdateFoodRequest request)
         {
             if (id <= 0)
             {
@@ -217,11 +219,23 @@ namespace HomemadeFood.Api.Controllers
                         "Kullanıcı bilgisi alınamadı."));
             }
 
-            var food =
-                await _foodService.UpdateFoodAsync(
-                    userId,
-                    id,
-                    request);
+            FoodResponse? food;
+
+            try
+            {
+                food =
+                    await _foodService.UpdateFoodAsync(
+                        userId,
+                        id,
+                        request);
+            }
+            catch (ArgumentException exception)
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.BadRequest,
+                        exception.Message));
+            }
 
             if (food == null)
             {

@@ -89,8 +89,8 @@ namespace HomemadeFood.Api.Services
                  */
                 if (!string.IsNullOrWhiteSpace(imageUrl))
                 {
-                    await _foodImageStorageService
-                        .DeleteAsync(imageUrl);
+                    await SafeDeleteFoodImageAsync(
+                        imageUrl);
                 }
 
                 throw;
@@ -209,6 +209,22 @@ namespace HomemadeFood.Api.Services
                 return null;
             }
 
+            var previousImageUrl =
+                food.ImageUrl;
+
+            string? replacementImageUrl =
+                null;
+
+            if (
+                request.Image != null &&
+                request.Image.Length > 0
+            )
+            {
+                replacementImageUrl =
+                    await _foodImageStorageService
+                        .SaveAsync(request.Image);
+            }
+
             food.CategoryId = category.Id;
             food.Category = category;
 
@@ -219,12 +235,48 @@ namespace HomemadeFood.Api.Services
             food.PreparationTimeMinutes =
                 request.PreparationTimeMinutes;
 
+            /*
+             * Yeni fotoğraf seçilmediyse mevcut görsel korunur.
+             */
             food.ImageUrl =
-                request.ImageUrl?.Trim() ?? string.Empty;
+                replacementImageUrl ??
+                previousImageUrl;
 
             food.IsAvailable = request.IsAvailable;
 
-            await _foodRepository.SaveChangesAsync();
+            try
+            {
+                await _foodRepository
+                    .SaveChangesAsync();
+            }
+            catch
+            {
+                /*
+                 * DB update başarısız olduysa yeni yüklenen dosya
+                 * sahipsiz bırakılmaz. Eski dosyaya dokunulmaz.
+                 */
+                await SafeDeleteFoodImageAsync(
+                    replacementImageUrl);
+
+                throw;
+            }
+
+            if (
+                replacementImageUrl != null &&
+                !string.Equals(
+                    previousImageUrl,
+                    replacementImageUrl,
+                    StringComparison.OrdinalIgnoreCase)
+            )
+            {
+                /*
+                 * DB artık yeni görsele işaret ediyor.
+                 * Eski dosya temizliği başarısız olsa bile başarılı
+                 * DB update'i geri çevirmiyoruz.
+                 */
+                await SafeDeleteFoodImageAsync(
+                    previousImageUrl);
+            }
 
             return MapToResponse(food);
         }
@@ -258,6 +310,28 @@ namespace HomemadeFood.Api.Services
             await _foodRepository.SaveChangesAsync();
 
             return true;
+        }
+
+        private async Task SafeDeleteFoodImageAsync(
+            string? imageUrl)
+        {
+            if (string.IsNullOrWhiteSpace(imageUrl))
+            {
+                return;
+            }
+
+            try
+            {
+                await _foodImageStorageService
+                    .DeleteAsync(imageUrl);
+            }
+            catch
+            {
+                /*
+                 * Storage cleanup ikincil işlemdir.
+                 * Başarılı DB kaydını veya asıl hatayı maskelemez.
+                 */
+            }
         }
 
         private static FoodResponse MapToResponse(Food food)
