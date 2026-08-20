@@ -21,16 +21,6 @@ namespace HomemadeFood.Api.Controllers
             _producerService = producerService;
         }
 
-        /*
-         * Müşteri ana sayfasındaki işletme/vitrin kartları.
-         *
-         * categoryId null:
-         *   En az bir aktif yemeği bulunan bütün uygun işletmeler.
-         *
-         * categoryId dolu:
-         *   Yalnızca seçilen kategoride en az bir aktif yemeği
-         *   bulunan uygun işletmeler.
-         */
         [AllowAnonymous]
         [HttpGet("storefronts")]
         public async Task<IActionResult>
@@ -61,6 +51,44 @@ namespace HomemadeFood.Api.Controllers
                         storefronts,
                         "İşletmeler başarıyla getirildi."));
         }
+
+        /*
+         * H4B:
+         * Ana sayfadaki Popüler İşletmeler carousel'i.
+         *
+         * Normal storefront listesiyle karıştırılmaz;
+         * gerçek kullanıcı davranışı ayrı endpoint üzerinden
+         * hesaplanır.
+         */
+        [AllowAnonymous]
+        [HttpGet("storefronts/popular")]
+        public async Task<IActionResult>
+            GetPopularStorefronts(
+                [FromQuery] int limit = 6)
+        {
+            if (limit < 1 ||
+                limit > 20)
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.BadRequest,
+                        "Limit değeri 1 ile 20 arasında olmalıdır."));
+            }
+
+            var storefronts =
+                await _producerService
+                    .GetPopularStorefrontsAsync(
+                        limit);
+
+            return Ok(
+                ApiResponse<
+                    List<
+                        PopularProducerStorefrontResponse>>
+                    .Succeed(
+                        storefronts,
+                        "Popüler işletmeler başarıyla getirildi."));
+        }
+
         [AllowAnonymous]
         [HttpGet(
             "storefronts/{producerProfileId:int}/menu")]
@@ -98,10 +126,11 @@ namespace HomemadeFood.Api.Controllers
         }
 
         [Authorize(
-    Policy =
-        AuthorizationPolicies.ApprovedProducer)]
+            Policy =
+                AuthorizationPolicies.ApprovedProducer)]
         [HttpGet("my-profile")]
-        public async Task<IActionResult> GetMyProfile()
+        public async Task<IActionResult>
+            GetMyProfile()
         {
             if (!TryGetUserId(out var userId))
             {
@@ -113,7 +142,8 @@ namespace HomemadeFood.Api.Controllers
 
             var profile =
                 await _producerService
-                    .GetMyApplicationAsync(userId);
+                    .GetMyApplicationAsync(
+                        userId);
 
             if (profile == null)
             {
@@ -132,20 +162,23 @@ namespace HomemadeFood.Api.Controllers
             }
 
             return Ok(
-                ApiResponse<ProducerApplicationStatusResponse>
+                ApiResponse<
+                    ProducerApplicationStatusResponse>
                     .Succeed(
                         profile,
                         "Üretici profili başarıyla getirildi."));
         }
+
         [Authorize(
             Policy =
                 AuthorizationPolicies.ApprovedProducer)]
         [HttpPut("my-profile")]
         [Consumes("multipart/form-data")]
         [RequestSizeLimit(6 * 1024 * 1024)]
-        public async Task<IActionResult> UpdateMyProfile(
-            [FromForm]
-            UpdateProducerProfileRequest request)
+        public async Task<IActionResult>
+            UpdateMyProfile(
+                [FromForm]
+                UpdateProducerProfileRequest request)
         {
             if (!TryGetUserId(out var userId))
             {
@@ -190,12 +223,15 @@ namespace HomemadeFood.Api.Controllers
                         "Üretici profili başarıyla güncellendi."));
         }
 
-        [Authorize(Roles = UserRoles.Customer)]
+        [Authorize(
+            Roles = UserRoles.Customer)]
         [HttpPost("apply")]
         [Consumes("multipart/form-data")]
         [RequestSizeLimit(6 * 1024 * 1024)]
-        public async Task<IActionResult> Apply(
-            [FromForm] ProducerApplicationRequest request)
+        public async Task<IActionResult>
+            Apply(
+                [FromForm]
+                ProducerApplicationRequest request)
         {
             if (!TryGetUserId(out var userId))
             {
@@ -210,9 +246,10 @@ namespace HomemadeFood.Api.Controllers
             try
             {
                 result =
-                    await _producerService.ApplyAsync(
-                        userId,
-                        request);
+                    await _producerService
+                        .ApplyAsync(
+                            userId,
+                            request);
             }
             catch (ArgumentException exception)
             {
@@ -245,10 +282,12 @@ namespace HomemadeFood.Api.Controllers
                     "Üretici başvurusu başarıyla oluşturuldu. Admin onayı bekleniyor.",
                     ApiResponseCodes.Created));
         }
-        [Authorize(Roles = UserRoles.Customer)]
+
+        [Authorize(
+            Roles = UserRoles.Customer)]
         [HttpGet("my-application")]
         public async Task<IActionResult>
-    GetMyApplication()
+            GetMyApplication()
         {
             if (!TryGetUserId(out var userId))
             {
@@ -260,7 +299,8 @@ namespace HomemadeFood.Api.Controllers
 
             var application =
                 await _producerService
-                    .GetMyApplicationAsync(userId);
+                    .GetMyApplicationAsync(
+                        userId);
 
             if (application == null)
             {
@@ -271,7 +311,8 @@ namespace HomemadeFood.Api.Controllers
             }
 
             return Ok(
-                ApiResponse<ProducerApplicationStatusResponse>
+                ApiResponse<
+                    ProducerApplicationStatusResponse>
                     .Succeed(
                         application,
                         "Üretici başvurusu başarıyla getirildi."));

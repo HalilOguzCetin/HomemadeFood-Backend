@@ -8,20 +8,37 @@ namespace HomemadeFood.Api.Interfaces
         Task AddAsync(ProducerProfile producerProfile);
 
         Task<bool> HasApplicationAsync(int userId);
+
         Task<ProducerProfile?> GetByUserIdAsync(
-    int userId);
+            int userId);
 
-        Task<List<ProducerProfile>> GetPendingApplicationsAsync();
         Task<List<ProducerProfile>>
-    GetApplicationsByStatusAsync(
-        string verificationStatus);
+            GetPendingApplicationsAsync();
 
-        Task<ProducerProfile?> GetByIdWithUserAsync(int producerProfileId);
-        Task<ProducerProfile?> GetApprovedByUserIdAsync(int userId);
+        Task<List<ProducerProfile>>
+            GetApplicationsByStatusAsync(
+                string verificationStatus);
+
+        Task<ProducerProfile?>
+            GetByIdWithUserAsync(
+                int producerProfileId);
+
+        Task<ProducerProfile?>
+            GetApprovedByUserIdAsync(
+                int userId);
 
         Task<List<ProducerStorefrontSummaryReadModel>>
             GetAvailableStorefrontsAsync(
                 int? categoryId);
+
+        /*
+         * H4B:
+         * Service'in popülerlik skorunu hesaplayabilmesi için
+         * görünür işletmelerin ham davranış metriklerini döndürür.
+         */
+        Task<List<ProducerPopularityCandidateReadModel>>
+            GetPopularityCandidatesAsync(
+                DateTime fromUtc);
 
         Task<ProducerStorefrontMenuReadModel?>
             GetAvailableStorefrontMenuAsync(

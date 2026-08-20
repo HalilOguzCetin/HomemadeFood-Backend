@@ -21,6 +21,15 @@ namespace HomemadeFood.Api.Interfaces
             GetAvailableStorefrontsAsync(
                 int? categoryId);
 
+        /*
+         * H4B:
+         * Gerçek kullanıcı davranışından hesaplanan
+         * popüler işletme listesini döndürür.
+         */
+        Task<List<PopularProducerStorefrontResponse>>
+            GetPopularStorefrontsAsync(
+                int limit);
+
         Task<ProducerStorefrontMenuResponse?>
             GetAvailableStorefrontMenuAsync(
                 int producerProfileId);

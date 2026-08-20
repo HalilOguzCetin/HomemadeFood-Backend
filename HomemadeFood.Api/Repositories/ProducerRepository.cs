@@ -271,6 +271,187 @@ namespace HomemadeFood.Api.Repositories
                 .ToListAsync();
         }
 
+
+        public async Task<
+            List<ProducerPopularityCandidateReadModel>>
+            GetPopularityCandidatesAsync(
+                DateTime fromUtc)
+        {
+            /*
+             * Önce müşteriye gerçekten gösterilebilir işletmeleri
+             * ve statik storefront metriklerini alıyoruz.
+             */
+            var candidates =
+                await _context.ProducerProfiles
+                    .AsNoTracking()
+                    .Where(producerProfile =>
+                        producerProfile.IsApproved &&
+                        producerProfile.IsAvailable &&
+                        producerProfile
+                            .VerificationStatus ==
+                        ProducerVerificationStatuses
+                            .Approved &&
+                        producerProfile.Foods
+                            .Any(food =>
+                                food.IsAvailable &&
+                                food.Category.IsActive))
+                    .Select(producerProfile =>
+                        new ProducerPopularityCandidateReadModel
+                        {
+                            ProducerProfileId =
+                                producerProfile.Id,
+
+                            BusinessName =
+                                producerProfile.BusinessName,
+
+                            Description =
+                                producerProfile.Description,
+
+                            BusinessImageUrl =
+                                producerProfile
+                                    .BusinessImageUrl,
+
+                            Rating =
+                                producerProfile.Rating,
+
+                            City =
+                                producerProfile.City,
+
+                            District =
+                                producerProfile.District,
+
+                            AvailableFoodCount =
+                                producerProfile.Foods
+                                    .Count(food =>
+                                        food.IsAvailable &&
+                                        food.Category
+                                            .IsActive),
+
+                            AvailableCategoryCount =
+                                producerProfile.Foods
+                                    .Where(food =>
+                                        food.IsAvailable &&
+                                        food.Category
+                                            .IsActive)
+                                    .Select(food =>
+                                        food.CategoryId)
+                                    .Distinct()
+                                    .Count(),
+
+                            MinimumPreparationTimeMinutes =
+                                producerProfile.Foods
+                                    .Where(food =>
+                                        food.IsAvailable &&
+                                        food.Category
+                                            .IsActive)
+                                    .Select(food =>
+                                        (int?)
+                                            food
+                                                .PreparationTimeMinutes)
+                                    .Min(),
+
+                            ReviewCount =
+                                producerProfile.Reviews
+                                    .Count(),
+
+                            FavoriteCount =
+                                producerProfile.Foods
+                                    .SelectMany(food =>
+                                        food.Favorites)
+                                    .Count()
+                        })
+                    .ToListAsync();
+
+            if (candidates.Count == 0)
+            {
+                return candidates;
+            }
+
+            var producerProfileIds =
+                candidates
+                    .Select(candidate =>
+                        candidate.ProducerProfileId)
+                    .ToList();
+
+            /*
+             * Popülerlikte yalnızca gerçekten tamamlanmış
+             * Delivered siparişler kullanılır.
+             *
+             * Cancelled/Rejected/Pending vb. durumlar sinyale
+             * hiçbir şekilde dahil edilmez.
+             */
+            var deliveredOrders =
+                await _context.Orders
+                    .AsNoTracking()
+                    .Where(order =>
+                        producerProfileIds.Contains(
+                            order.ProducerProfileId) &&
+                        order.Status ==
+                            OrderStatuses.Delivered &&
+                        order.CreatedAt >= fromUtc)
+                    .Select(order =>
+                        new
+                        {
+                            order.ProducerProfileId,
+                            order.CustomerId
+                        })
+                    .ToListAsync();
+
+            var orderMetrics =
+                deliveredOrders
+                    .GroupBy(order =>
+                        order.ProducerProfileId)
+                    .ToDictionary(
+                        group => group.Key,
+                        group =>
+                        {
+                            var customerOrderCounts =
+                                group
+                                    .GroupBy(order =>
+                                        order.CustomerId)
+                                    .Select(customerGroup =>
+                                        customerGroup.Count())
+                                    .ToList();
+
+                            return new
+                            {
+                                DeliveredOrderCount =
+                                    group.Count(),
+
+                                DistinctCustomerCount =
+                                    customerOrderCounts.Count,
+
+                                RepeatCustomerCount =
+                                    customerOrderCounts
+                                        .Count(count =>
+                                            count >= 2)
+                            };
+                        });
+
+            foreach (var candidate in candidates)
+            {
+                if (
+                    !orderMetrics.TryGetValue(
+                        candidate.ProducerProfileId,
+                        out var metrics)
+                )
+                {
+                    continue;
+                }
+
+                candidate.DeliveredOrderCount30Days =
+                    metrics.DeliveredOrderCount;
+
+                candidate.DistinctCustomerCount30Days =
+                    metrics.DistinctCustomerCount;
+
+                candidate.RepeatCustomerCount30Days =
+                    metrics.RepeatCustomerCount;
+            }
+
+            return candidates;
+        }
+
         public async Task<ProducerStorefrontMenuReadModel?>
             GetAvailableStorefrontMenuAsync(
                 int producerProfileId)

@@ -163,9 +163,13 @@ namespace HomemadeFood.Api.Services
             }
 
             /*
+
              * Yeni başvuruda vitrin görseli zorunludur.
+
              * Reddedilmiş bir başvuruda mevcut görsel varsa
+
              * kullanıcı aynı görselle yeniden başvurabilir.
+
              */
             if (
                 (request.BusinessImage == null ||
@@ -723,6 +727,207 @@ namespace HomemadeFood.Api.Services
         }
 
         public async Task<
+                    List<PopularProducerStorefrontResponse>>
+                    GetPopularStorefrontsAsync(
+                        int limit)
+        {
+            var safeLimit =
+                Math.Clamp(
+                    limit,
+                    1,
+                    20);
+
+            var fromUtc =
+                _appClock.UtcNow
+                    .AddDays(-30);
+
+            var candidates =
+                await _producerRepository
+                    .GetPopularityCandidatesAsync(
+                        fromUtc);
+
+            if (candidates.Count == 0)
+            {
+                return new List<
+                    PopularProducerStorefrontResponse>();
+            }
+
+            var totalReviewCount =
+                candidates.Sum(candidate =>
+                    candidate.ReviewCount);
+
+            var globalRatingMean =
+                totalReviewCount > 0
+                    ? candidates.Sum(candidate =>
+                            (double)candidate.Rating *
+                            candidate.ReviewCount) /
+                        totalReviewCount
+                    : 0.0;
+
+            const double priorReviewWeight = 5.0;
+
+            var maxDeliveredOrders =
+                candidates.Max(candidate =>
+                    candidate.DeliveredOrderCount30Days);
+
+            var maxDistinctCustomers =
+                candidates.Max(candidate =>
+                    candidate.DistinctCustomerCount30Days);
+
+            var maxFavoriteCount =
+                candidates.Max(candidate =>
+                    candidate.FavoriteCount);
+
+            return candidates
+                .Select(candidate =>
+                {
+                    var reviewCount =
+                        candidate.ReviewCount;
+
+                    var bayesianRating =
+                        reviewCount > 0
+                            ? (
+                                (
+                                    reviewCount *
+                                    (double)candidate.Rating
+                                ) +
+                                (
+                                    priorReviewWeight *
+                                    globalRatingMean
+                                )
+                              ) /
+                              (
+                                  reviewCount +
+                                  priorReviewWeight
+                              )
+                            : globalRatingMean;
+
+                    var deliveredOrderScore =
+                        NormalizePopularityMetric(
+                            candidate.DeliveredOrderCount30Days,
+                            maxDeliveredOrders);
+
+                    var ratingScore =
+                        Math.Clamp(
+                            bayesianRating / 5.0,
+                            0.0,
+                            1.0);
+
+                    var distinctCustomerScore =
+                        NormalizePopularityMetric(
+                            candidate.DistinctCustomerCount30Days,
+                            maxDistinctCustomers);
+
+                    var favoriteScore =
+                        NormalizePopularityMetric(
+                            candidate.FavoriteCount,
+                            maxFavoriteCount);
+
+                    var repeatCustomerRatio =
+                        candidate.DistinctCustomerCount30Days > 0
+                            ? (double)candidate.RepeatCustomerCount30Days /
+                              candidate.DistinctCustomerCount30Days
+                            : 0.0;
+
+                    var popularityScore =
+                        (
+                            deliveredOrderScore * 0.45 +
+                            ratingScore * 0.25 +
+                            distinctCustomerScore * 0.15 +
+                            favoriteScore * 0.10 +
+                            repeatCustomerRatio * 0.05
+                        ) * 100.0;
+
+                    return new
+                    {
+                        Candidate = candidate,
+                        PopularityScore =
+                            Math.Round(
+                                popularityScore,
+                                2)
+                    };
+                })
+                .OrderByDescending(item =>
+                    item.PopularityScore)
+                .ThenByDescending(item =>
+                    item.Candidate.DeliveredOrderCount30Days)
+                .ThenByDescending(item =>
+                    item.Candidate.Rating)
+                .ThenBy(item =>
+                    item.Candidate.BusinessName)
+                .Take(safeLimit)
+                .Select(item =>
+                    new PopularProducerStorefrontResponse
+                    {
+                        ProducerProfileId =
+                            item.Candidate.ProducerProfileId,
+
+                        BusinessName =
+                            item.Candidate.BusinessName,
+
+                        Description =
+                            item.Candidate.Description,
+
+                        BusinessImageUrl =
+                            item.Candidate.BusinessImageUrl,
+
+                        Rating =
+                            item.Candidate.Rating,
+
+                        City =
+                            item.Candidate.City,
+
+                        District =
+                            item.Candidate.District,
+
+                        AvailableFoodCount =
+                            item.Candidate.AvailableFoodCount,
+
+                        AvailableCategoryCount =
+                            item.Candidate.AvailableCategoryCount,
+
+                        MatchingFoodCount =
+                            item.Candidate.AvailableFoodCount,
+
+                        MinimumPreparationTimeMinutes =
+                            item.Candidate
+                                .MinimumPreparationTimeMinutes,
+
+                        PopularityScore =
+                            item.PopularityScore,
+
+                        DeliveredOrderCount30Days =
+                            item.Candidate.DeliveredOrderCount30Days,
+
+                        DistinctCustomerCount30Days =
+                            item.Candidate.DistinctCustomerCount30Days,
+
+                        ReviewCount =
+                            item.Candidate.ReviewCount,
+
+                        FavoriteCount =
+                            item.Candidate.FavoriteCount
+                    })
+                .ToList();
+        }
+
+        private static double NormalizePopularityMetric(
+            int value,
+            int maximum)
+        {
+            if (maximum <= 0 ||
+                value <= 0)
+            {
+                return 0.0;
+            }
+
+            return Math.Clamp(
+                (double)value / maximum,
+                0.0,
+                1.0);
+        }
+
+        public async Task<
             ProducerStorefrontMenuResponse?>
             GetAvailableStorefrontMenuAsync(
                 int producerProfileId)
@@ -738,12 +943,19 @@ namespace HomemadeFood.Api.Services
             }
 
             /*
+
              * Kategoriler backend tarafında gruplanır.
+
              * Böylece Android Food listesini tekrar kategoriye
+
              * ayırmak zorunda kalmaz.
+
              *
+
              * Boş kategori üretilemez; yalnızca storefront.Foods
+
              * içinde gerçekten bulunan kategoriler response'a girer.
+
              */
             var categories =
                 storefront.Foods
@@ -844,9 +1056,13 @@ namespace HomemadeFood.Api.Services
             catch
             {
                 /*
+
                  * DB işlemi başarılı/başarısız durumdayken eski veya
+
                  * geçici dosyanın temizlenememesi ana isteği bozmaz.
+
                  * İleride merkezi loglama eklendiğinde burada loglanabilir.
+
                  */
             }
         }
