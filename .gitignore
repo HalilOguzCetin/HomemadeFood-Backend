@@ -19,3 +19,28 @@ HomemadeFood.Api/wwwroot/uploads/foods/
 
 # Runtime-generated user uploads
 HomemadeFood.Api/wwwroot/uploads/
+
+# Environment / local secrets
+.env
+.env.*
+!.env.example
+
+# Certificates and private keys
+*.pfx
+*.p12
+*.pem
+*.key
+
+# Local databases / backups
+*.db
+*.sqlite
+*.bak
+*.dump
+
+# Runtime logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
