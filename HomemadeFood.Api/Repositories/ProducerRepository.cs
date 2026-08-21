@@ -270,6 +270,590 @@ namespace HomemadeFood.Api.Repositories
                     storefront.BusinessName)
                 .ToListAsync();
         }
+        public async Task<
+           List<ProducerNearbyCandidateReadModel>>
+           GetNearbyCandidatesAsync()
+        {
+            return await _context.ProducerProfiles
+                .AsNoTracking()
+                .Where(producerProfile =>
+                    producerProfile.IsApproved &&
+                    producerProfile.IsAvailable &&
+                    producerProfile.VerificationStatus ==
+                        ProducerVerificationStatuses.Approved &&
+                    producerProfile.Foods.Any(food =>
+                        food.IsAvailable &&
+                        food.Category.IsActive))
+                .Select(producerProfile =>
+                    new ProducerNearbyCandidateReadModel
+                    {
+                        ProducerProfileId =
+                            producerProfile.Id,
+
+                        BusinessName =
+                            producerProfile.BusinessName,
+
+                        Description =
+                            producerProfile.Description,
+
+                        BusinessImageUrl =
+                            producerProfile.BusinessImageUrl,
+
+                        Rating =
+                            producerProfile.Rating,
+
+                        City =
+                            producerProfile.City,
+
+                        District =
+                            producerProfile.District,
+
+                        Latitude =
+                            producerProfile.Latitude,
+
+                        Longitude =
+                            producerProfile.Longitude,
+
+                        AvailableFoodCount =
+                            producerProfile.Foods.Count(food =>
+                                food.IsAvailable &&
+                                food.Category.IsActive),
+
+                        AvailableCategoryCount =
+                            producerProfile.Foods
+                                .Where(food =>
+                                    food.IsAvailable &&
+                                    food.Category.IsActive)
+                                .Select(food =>
+                                    food.CategoryId)
+                                .Distinct()
+                                .Count(),
+
+                        MinimumPreparationTimeMinutes =
+                            producerProfile.Foods
+                                .Where(food =>
+                                    food.IsAvailable &&
+                                    food.Category.IsActive)
+                                .Select(food =>
+                                    (int?)food.PreparationTimeMinutes)
+                                .Min()
+                    })
+                .ToListAsync();
+        }
+        public async Task<
+           List<ProducerDiscoverCandidateReadModel>>
+           GetDiscoverCandidatesAsync(
+               int? categoryId,
+               string? search,
+               double minimumLatitude,
+               double maximumLatitude,
+               double minimumLongitude,
+               double maximumLongitude,
+               DateTime fromUtc)
+        {
+            var query =
+                _context.ProducerProfiles
+                    .AsNoTracking()
+                    .Where(producerProfile =>
+                        producerProfile.IsApproved &&
+                        producerProfile.IsAvailable &&
+                        producerProfile
+                            .VerificationStatus ==
+                        ProducerVerificationStatuses
+                            .Approved &&
+                        producerProfile.Latitude >=
+                            minimumLatitude &&
+                        producerProfile.Latitude <=
+                            maximumLatitude &&
+                        producerProfile.Longitude >=
+                            minimumLongitude &&
+                        producerProfile.Longitude <=
+                            maximumLongitude &&
+                        producerProfile.Foods
+                            .Any(food =>
+                                food.IsAvailable &&
+                                food.Category.IsActive));
+
+            if (categoryId.HasValue)
+            {
+                var selectedCategoryId =
+                    categoryId.Value;
+
+                query =
+                    query.Where(
+                        producerProfile =>
+                            producerProfile.Foods
+                                .Any(food =>
+                                    food.IsAvailable &&
+                                    food.Category.IsActive &&
+                                    food.CategoryId ==
+                                        selectedCategoryId));
+            }
+
+            if (
+                !string.IsNullOrWhiteSpace(
+                    search)
+            )
+            {
+                var searchValue =
+                    search.Trim();
+
+                query =
+                    query.Where(
+                        producerProfile =>
+                            EF.Functions.Like(
+                                producerProfile
+                                    .BusinessName,
+                                $"%{searchValue}%") ||
+                            EF.Functions.Like(
+                                producerProfile
+                                    .Description,
+                                $"%{searchValue}%") ||
+                            EF.Functions.Like(
+                                producerProfile.City,
+                                $"%{searchValue}%") ||
+                            EF.Functions.Like(
+                                producerProfile
+                                    .District,
+                                $"%{searchValue}%") ||
+                            producerProfile.Foods
+                                .Any(food =>
+                                    food.IsAvailable &&
+                                    food.Category.IsActive &&
+                                    (
+                                        !categoryId
+                                            .HasValue ||
+                                        food.CategoryId ==
+                                            categoryId.Value
+                                    ) &&
+                                    (
+                                        EF.Functions.Like(
+                                            food.Name,
+                                            $"%{searchValue}%") ||
+                                        EF.Functions.Like(
+                                            food.Description,
+                                            $"%{searchValue}%")
+                                    )));
+            }
+
+            var candidates =
+                await query
+                    .Select(
+                        producerProfile =>
+                            new ProducerDiscoverCandidateReadModel
+                            {
+                                ProducerProfileId =
+                                    producerProfile.Id,
+
+                                BusinessName =
+                                    producerProfile
+                                        .BusinessName,
+
+                                Description =
+                                    producerProfile
+                                        .Description,
+
+                                BusinessImageUrl =
+                                    producerProfile
+                                        .BusinessImageUrl,
+
+                                Rating =
+                                    producerProfile.Rating,
+
+                                City =
+                                    producerProfile.City,
+
+                                District =
+                                    producerProfile
+                                        .District,
+
+                                Latitude =
+                                    producerProfile
+                                        .Latitude,
+
+                                Longitude =
+                                    producerProfile
+                                        .Longitude,
+
+                                AvailableFoodCount =
+                                    producerProfile.Foods
+                                        .Count(food =>
+                                            food.IsAvailable &&
+                                            food.Category
+                                                .IsActive),
+
+                                AvailableCategoryCount =
+                                    producerProfile.Foods
+                                        .Where(food =>
+                                            food.IsAvailable &&
+                                            food.Category
+                                                .IsActive)
+                                        .Select(food =>
+                                            food.CategoryId)
+                                        .Distinct()
+                                        .Count(),
+
+                                MatchingFoodCount =
+                                    producerProfile.Foods
+                                        .Count(food =>
+                                            food.IsAvailable &&
+                                            food.Category
+                                                .IsActive &&
+                                            (
+                                                !categoryId
+                                                    .HasValue ||
+                                                food.CategoryId ==
+                                                    categoryId.Value
+                                            )),
+
+                                MinimumPreparationTimeMinutes =
+                                    producerProfile.Foods
+                                        .Where(food =>
+                                            food.IsAvailable &&
+                                            food.Category
+                                                .IsActive &&
+                                            (
+                                                !categoryId
+                                                    .HasValue ||
+                                                food.CategoryId ==
+                                                    categoryId.Value
+                                            ))
+                                        .Select(food =>
+                                            (int?)
+                                                food
+                                                    .PreparationTimeMinutes)
+                                        .Min(),
+
+                                ReviewCount =
+                                    producerProfile
+                                        .Reviews
+                                        .Count(),
+
+                                /*
+                                 * Favorite entity'sinde CreatedAt
+                                 * bulunmadığı için H4 gibi all-time.
+                                 */
+                                FavoriteCount =
+                                    producerProfile.Foods
+                                        .SelectMany(food =>
+                                            food.Favorites)
+                                        .Count()
+                            })
+                    .ToListAsync();
+
+            if (candidates.Count == 0)
+            {
+                return candidates;
+            }
+
+            var producerProfileIds =
+                candidates
+                    .Select(candidate =>
+                        candidate
+                            .ProducerProfileId)
+                    .ToList();
+
+            /*
+             * H4 ile aynı kural:
+             * yalnız son 30 gündeki Delivered siparişler.
+             */
+            var deliveredOrders =
+                await _context.Orders
+                    .AsNoTracking()
+                    .Where(order =>
+                        producerProfileIds.Contains(
+                            order
+                                .ProducerProfileId) &&
+                        order.Status ==
+                            OrderStatuses.Delivered &&
+                        order.CreatedAt >=
+                            fromUtc)
+                    .Select(order =>
+                        new
+                        {
+                            order.ProducerProfileId,
+                            order.CustomerId
+                        })
+                    .ToListAsync();
+
+            var orderMetrics =
+                deliveredOrders
+                    .GroupBy(order =>
+                        order.ProducerProfileId)
+                    .ToDictionary(
+                        group => group.Key,
+                        group =>
+                        {
+                            var customerOrderCounts =
+                                group
+                                    .GroupBy(order =>
+                                        order.CustomerId)
+                                    .Select(
+                                        customerGroup =>
+                                            customerGroup
+                                                .Count())
+                                    .ToList();
+
+                            return new
+                            {
+                                DeliveredOrderCount =
+                                    group.Count(),
+
+                                DistinctCustomerCount =
+                                    customerOrderCounts
+                                        .Count,
+
+                                RepeatCustomerCount =
+                                    customerOrderCounts
+                                        .Count(count =>
+                                            count >= 2)
+                            };
+                        });
+
+            foreach (
+                var candidate in candidates
+            )
+            {
+                if (
+                    !orderMetrics.TryGetValue(
+                        candidate
+                            .ProducerProfileId,
+                        out var metrics)
+                )
+                {
+                    continue;
+                }
+
+                candidate
+                    .DeliveredOrderCount30Days =
+                    metrics.DeliveredOrderCount;
+
+                candidate
+                    .DistinctCustomerCount30Days =
+                    metrics.DistinctCustomerCount;
+
+                candidate
+                    .RepeatCustomerCount30Days =
+                    metrics.RepeatCustomerCount;
+            }
+
+            return candidates;
+        }
+        public async Task<
+            List<ProducerDiscoverCandidateReadModel>>
+            GetCityCandidatesAsync(
+                string city,
+                DateTime fromUtc)
+        {
+            var normalizedCityInput =
+                city.Trim();
+
+            var query =
+                _context.ProducerProfiles
+                    .AsNoTracking()
+                    .Where(producerProfile =>
+                        producerProfile.IsApproved &&
+                        producerProfile.IsAvailable &&
+                        producerProfile
+                            .VerificationStatus ==
+                        ProducerVerificationStatuses
+                            .Approved &&
+                        EF.Functions.Like(
+                            producerProfile.City,
+                            normalizedCityInput) &&
+                        producerProfile.Foods
+                            .Any(food =>
+                                food.IsAvailable &&
+                                food.Category.IsActive));
+
+            var candidates =
+                await query
+                    .Select(
+                        producerProfile =>
+                            new ProducerDiscoverCandidateReadModel
+                            {
+                                ProducerProfileId =
+                                    producerProfile.Id,
+
+                                BusinessName =
+                                    producerProfile
+                                        .BusinessName,
+
+                                Description =
+                                    producerProfile
+                                        .Description,
+
+                                BusinessImageUrl =
+                                    producerProfile
+                                        .BusinessImageUrl,
+
+                                Rating =
+                                    producerProfile.Rating,
+
+                                City =
+                                    producerProfile.City,
+
+                                District =
+                                    producerProfile
+                                        .District,
+
+                                Latitude =
+                                    producerProfile
+                                        .Latitude,
+
+                                Longitude =
+                                    producerProfile
+                                        .Longitude,
+
+                                AvailableFoodCount =
+                                    producerProfile.Foods
+                                        .Count(food =>
+                                            food.IsAvailable &&
+                                            food.Category
+                                                .IsActive),
+
+                                AvailableCategoryCount =
+                                    producerProfile.Foods
+                                        .Where(food =>
+                                            food.IsAvailable &&
+                                            food.Category
+                                                .IsActive)
+                                        .Select(food =>
+                                            food.CategoryId)
+                                        .Distinct()
+                                        .Count(),
+
+                                MatchingFoodCount =
+                                    producerProfile.Foods
+                                        .Count(food =>
+                                            food.IsAvailable &&
+                                            food.Category
+                                                .IsActive),
+
+                                MinimumPreparationTimeMinutes =
+                                    producerProfile.Foods
+                                        .Where(food =>
+                                            food.IsAvailable &&
+                                            food.Category
+                                                .IsActive)
+                                        .Select(food =>
+                                            (int?)
+                                            food.PreparationTimeMinutes)
+                                        .Min(),
+
+                                ReviewCount =
+                                    producerProfile
+                                        .Reviews
+                                        .Count(),
+
+                                FavoriteCount =
+                                    producerProfile.Foods
+                                        .SelectMany(food =>
+                                            food.Favorites)
+                                        .Count()
+                            })
+                    .ToListAsync();
+
+            if (candidates.Count == 0)
+            {
+                return candidates;
+            }
+
+            var producerProfileIds =
+                candidates
+                    .Select(candidate =>
+                        candidate
+                            .ProducerProfileId)
+                    .ToList();
+
+            /*
+             * H4 ile aynı davranış sinyalleri:
+             * son 30 gündeki yalnız Delivered siparişler.
+             */
+            var deliveredOrders =
+                await _context.Orders
+                    .AsNoTracking()
+                    .Where(order =>
+                        producerProfileIds.Contains(
+                            order
+                                .ProducerProfileId) &&
+                        order.Status ==
+                            OrderStatuses.Delivered &&
+                        order.CreatedAt >=
+                            fromUtc)
+                    .Select(order =>
+                        new
+                        {
+                            order.ProducerProfileId,
+                            order.CustomerId
+                        })
+                    .ToListAsync();
+
+            var orderMetrics =
+                deliveredOrders
+                    .GroupBy(order =>
+                        order.ProducerProfileId)
+                    .ToDictionary(
+                        group => group.Key,
+                        group =>
+                        {
+                            var customerOrderCounts =
+                                group
+                                    .GroupBy(order =>
+                                        order.CustomerId)
+                                    .Select(
+                                        customerGroup =>
+                                            customerGroup
+                                                .Count())
+                                    .ToList();
+
+                            return new
+                            {
+                                DeliveredOrderCount =
+                                    group.Count(),
+
+                                DistinctCustomerCount =
+                                    customerOrderCounts
+                                        .Count,
+
+                                RepeatCustomerCount =
+                                    customerOrderCounts
+                                        .Count(count =>
+                                            count >= 2)
+                            };
+                        });
+
+            foreach (
+                var candidate in candidates
+            )
+            {
+                if (
+                    !orderMetrics.TryGetValue(
+                        candidate
+                            .ProducerProfileId,
+                        out var metrics)
+                )
+                {
+                    continue;
+                }
+
+                candidate
+                    .DeliveredOrderCount30Days =
+                    metrics.DeliveredOrderCount;
+
+                candidate
+                    .DistinctCustomerCount30Days =
+                    metrics.DistinctCustomerCount;
+
+                candidate
+                    .RepeatCustomerCount30Days =
+                    metrics.RepeatCustomerCount;
+            }
+
+            return candidates;
+        }
+
+
 
 
         public async Task<

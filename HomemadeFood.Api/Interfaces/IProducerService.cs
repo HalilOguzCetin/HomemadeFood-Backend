@@ -1,4 +1,5 @@
 ﻿using HomemadeFood.Api.DTOs.Producer;
+using HomemadeFood.Api.DTOs.Common;
 
 namespace HomemadeFood.Api.Interfaces
 {
@@ -21,14 +22,34 @@ namespace HomemadeFood.Api.Interfaces
             GetAvailableStorefrontsAsync(
                 int? categoryId);
 
-        /*
-         * H4B:
-         * Gerçek kullanıcı davranışından hesaplanan
-         * popüler işletme listesini döndürür.
-         */
         Task<List<PopularProducerStorefrontResponse>>
             GetPopularStorefrontsAsync(
                 int limit);
+
+        Task<List<NearbyProducerStorefrontResponse>>
+            GetNearbyStorefrontsAsync(
+                double latitude,
+                double longitude,
+                double radiusKm,
+                int limit);
+        Task<
+            PagedResultResponse<
+                DiscoverProducerStorefrontResponse>>
+            GetDiscoverStorefrontsAsync(
+                double latitude,
+                double longitude,
+                string city,
+                double radiusKm,
+                int page,
+                int pageSize,
+                int? categoryId,
+                string? search);
+        Task<List<DiscoverProducerStorefrontResponse>>
+           GetCityStorefrontsAsync(
+               string city,
+               double latitude,
+               double longitude,
+               int limit);
 
         Task<ProducerStorefrontMenuResponse?>
             GetAvailableStorefrontMenuAsync(

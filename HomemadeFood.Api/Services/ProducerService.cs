@@ -4,6 +4,9 @@ using HomemadeFood.Api.Entities;
 using HomemadeFood.Api.Interfaces;
 using System.Globalization;
 using Microsoft.EntityFrameworkCore;
+using HomemadeFood.Api.DTOs.Common;
+using System.Text;
+
 
 namespace HomemadeFood.Api.Services
 {
@@ -725,6 +728,784 @@ namespace HomemadeFood.Api.Services
                     })
                 .ToList();
         }
+        public async Task<
+            List<NearbyProducerStorefrontResponse>>
+            GetNearbyStorefrontsAsync(
+                double latitude,
+                double longitude,
+                double radiusKm,
+                int limit)
+        {
+            var safeLimit =
+                Math.Clamp(
+                    limit,
+                    1,
+                    20);
+
+            var candidates =
+                await _producerRepository
+                    .GetNearbyCandidatesAsync();
+
+            if (candidates.Count == 0)
+            {
+                return new List<
+                    NearbyProducerStorefrontResponse>();
+            }
+
+            return candidates
+                .Where(candidate =>
+                    double.IsFinite(candidate.Latitude) &&
+                    double.IsFinite(candidate.Longitude) &&
+                    candidate.Latitude >= -90 &&
+                    candidate.Latitude <= 90 &&
+                    candidate.Longitude >= -180 &&
+                    candidate.Longitude <= 180)
+                .Select(candidate =>
+                    new
+                    {
+                        Candidate = candidate,
+
+                        DistanceKm =
+                            CalculateDistanceKm(
+                                latitude,
+                                longitude,
+                                candidate.Latitude,
+                                candidate.Longitude)
+                    })
+                .Where(item =>
+                    item.DistanceKm <= radiusKm)
+                .OrderBy(item =>
+                    item.DistanceKm)
+                .ThenByDescending(item =>
+                    item.Candidate.Rating)
+                .ThenByDescending(item =>
+                    item.Candidate.AvailableFoodCount)
+                .ThenBy(item =>
+                    item.Candidate.BusinessName)
+                .Take(safeLimit)
+                .Select(item =>
+                    new NearbyProducerStorefrontResponse
+                    {
+                        ProducerProfileId =
+                            item.Candidate.ProducerProfileId,
+
+                        BusinessName =
+                            item.Candidate.BusinessName,
+
+                        Description =
+                            item.Candidate.Description,
+
+                        BusinessImageUrl =
+                            item.Candidate.BusinessImageUrl,
+
+                        Rating =
+                            item.Candidate.Rating,
+
+                        City =
+                            item.Candidate.City,
+
+                        District =
+                            item.Candidate.District,
+
+                        AvailableFoodCount =
+                            item.Candidate.AvailableFoodCount,
+
+                        AvailableCategoryCount =
+                            item.Candidate.AvailableCategoryCount,
+
+                        MatchingFoodCount =
+                            item.Candidate.AvailableFoodCount,
+
+                        MinimumPreparationTimeMinutes =
+                            item.Candidate
+                                .MinimumPreparationTimeMinutes,
+
+                        DistanceKm =
+                            Math.Round(
+                                item.DistanceKm,
+                                2)
+                    })
+                .ToList();
+        }
+        public async Task<
+           PagedResultResponse<
+               DiscoverProducerStorefrontResponse>>
+           GetDiscoverStorefrontsAsync(
+               double latitude,
+               double longitude,
+               string city,
+               double radiusKm,
+               int page,
+               int pageSize,
+               int? categoryId,
+               string? search)
+        {
+            var safePage =
+                Math.Max(
+                    page,
+                    1);
+
+            var safePageSize =
+                Math.Clamp(
+                    pageSize,
+                    1,
+                    50);
+
+            var fromUtc =
+                _appClock.UtcNow
+                    .AddDays(-30);
+
+            /*
+             * Önce SQL tarafında kaba koordinat kutusu.
+             * Sonra gerçek Haversine <= radiusKm kontrolü.
+             */
+            var latitudeDelta =
+                radiusKm / 111.0;
+
+            var latitudeRadians =
+                DiscoverDegreesToRadians(
+                    latitude);
+
+            var longitudeScale =
+                Math.Max(
+                    0.01,
+                    Math.Abs(
+                        Math.Cos(
+                            latitudeRadians)));
+
+            var longitudeDelta =
+                radiusKm /
+                (
+                    111.320 *
+                    longitudeScale
+                );
+
+            var candidates =
+                await _producerRepository
+                    .GetDiscoverCandidatesAsync(
+                        categoryId,
+                        search,
+                        latitude -
+                            latitudeDelta,
+                        latitude +
+                            latitudeDelta,
+                        longitude -
+                            longitudeDelta,
+                        longitude +
+                            longitudeDelta,
+                        fromUtc);
+
+            var normalizedCity =
+                NormalizeDiscoverCity(
+                    city);
+
+            var localCandidates =
+                candidates
+                    .Where(candidate =>
+                        double.IsFinite(
+                            candidate.Latitude) &&
+                        double.IsFinite(
+                            candidate.Longitude) &&
+                        candidate.Latitude >=
+                            -90 &&
+                        candidate.Latitude <=
+                            90 &&
+                        candidate.Longitude >=
+                            -180 &&
+                        candidate.Longitude <=
+                            180 &&
+                        NormalizeDiscoverCity(
+                            candidate.City) ==
+                        normalizedCity)
+                    .Select(candidate =>
+                        new
+                        {
+                            Candidate =
+                                candidate,
+
+                            DistanceKm =
+                                CalculateDiscoverStorefrontDistanceKm(
+                                    latitude,
+                                    longitude,
+                                    candidate
+                                        .Latitude,
+                                    candidate
+                                        .Longitude)
+                        })
+                    .Where(item =>
+                        item.DistanceKm <=
+                            radiusKm)
+                    .ToList();
+
+            if (
+                localCandidates.Count ==
+                0
+            )
+            {
+                return new PagedResultResponse<
+                    DiscoverProducerStorefrontResponse>
+                {
+                    Page =
+                        safePage,
+
+                    PageSize =
+                        safePageSize,
+
+                    TotalCount =
+                        0,
+
+                    Items =
+                        new List<
+                            DiscoverProducerStorefrontResponse>()
+                };
+            }
+
+            /*
+             * H4 popüler işletme algoritmasının aynısı.
+             * Ancak Keşfet'te ana kriter mesafedir.
+             */
+            var totalReviewCount =
+                localCandidates.Sum(item =>
+                    item.Candidate
+                        .ReviewCount);
+
+            var globalRatingMean =
+                totalReviewCount > 0
+                    ? localCandidates.Sum(item =>
+                            (double)
+                            item.Candidate.Rating *
+                            item.Candidate
+                                .ReviewCount) /
+                        totalReviewCount
+                    : 0.0;
+
+            const double priorReviewWeight =
+                5.0;
+
+            var maxDeliveredOrders =
+                localCandidates.Max(item =>
+                    item.Candidate
+                        .DeliveredOrderCount30Days);
+
+            var maxDistinctCustomers =
+                localCandidates.Max(item =>
+                    item.Candidate
+                        .DistinctCustomerCount30Days);
+
+            var maxFavoriteCount =
+                localCandidates.Max(item =>
+                    item.Candidate
+                        .FavoriteCount);
+
+            var ranked =
+                localCandidates
+                    .Select(item =>
+                    {
+                        var candidate =
+                            item.Candidate;
+
+                        var reviewCount =
+                            candidate.ReviewCount;
+
+                        var bayesianRating =
+                            reviewCount > 0
+                                ? (
+                                    (
+                                        reviewCount *
+                                        (double)
+                                        candidate.Rating
+                                    ) +
+                                    (
+                                        priorReviewWeight *
+                                        globalRatingMean
+                                    )
+                                  ) /
+                                  (
+                                      reviewCount +
+                                      priorReviewWeight
+                                  )
+                                : globalRatingMean;
+
+                        var deliveredOrderScore =
+                            NormalizeDiscoverMetric(
+                                candidate
+                                    .DeliveredOrderCount30Days,
+                                maxDeliveredOrders);
+
+                        var ratingScore =
+                            Math.Clamp(
+                                bayesianRating /
+                                    5.0,
+                                0.0,
+                                1.0);
+
+                        var distinctCustomerScore =
+                            NormalizeDiscoverMetric(
+                                candidate
+                                    .DistinctCustomerCount30Days,
+                                maxDistinctCustomers);
+
+                        var favoriteScore =
+                            NormalizeDiscoverMetric(
+                                candidate
+                                    .FavoriteCount,
+                                maxFavoriteCount);
+
+                        var repeatCustomerRatio =
+                            candidate
+                                .DistinctCustomerCount30Days >
+                            0
+                                ? (double)
+                                  candidate
+                                      .RepeatCustomerCount30Days /
+                                  candidate
+                                      .DistinctCustomerCount30Days
+                                : 0.0;
+
+                        var popularityScore =
+                            (
+                                deliveredOrderScore *
+                                    0.45 +
+                                ratingScore *
+                                    0.25 +
+                                distinctCustomerScore *
+                                    0.15 +
+                                favoriteScore *
+                                    0.10 +
+                                repeatCustomerRatio *
+                                    0.05
+                            ) *
+                            100.0;
+
+                        return new
+                        {
+                            Candidate =
+                                candidate,
+
+                            DistanceKm =
+                                item.DistanceKm,
+
+                            PopularityScore =
+                                Math.Round(
+                                    popularityScore,
+                                    2)
+                        };
+                    })
+                    .OrderBy(item =>
+                        item.DistanceKm)
+                    .ThenByDescending(item =>
+                        item.PopularityScore)
+                    .ThenByDescending(item =>
+                        item.Candidate.Rating)
+                    .ThenByDescending(item =>
+                        item.Candidate
+                            .MatchingFoodCount)
+                    .ThenBy(item =>
+                        item.Candidate
+                            .BusinessName)
+                    .ToList();
+
+            var totalCount =
+                ranked.Count;
+
+            var items =
+                ranked
+                    .Skip(
+                        (
+                            safePage -
+                            1
+                        ) *
+                        safePageSize)
+                    .Take(
+                        safePageSize)
+                    .Select(item =>
+                        new DiscoverProducerStorefrontResponse
+                        {
+                            ProducerProfileId =
+                                item.Candidate
+                                    .ProducerProfileId,
+
+                            BusinessName =
+                                item.Candidate
+                                    .BusinessName,
+
+                            Description =
+                                item.Candidate
+                                    .Description,
+
+                            BusinessImageUrl =
+                                item.Candidate
+                                    .BusinessImageUrl,
+
+                            Rating =
+                                item.Candidate
+                                    .Rating,
+
+                            City =
+                                item.Candidate.City,
+
+                            District =
+                                item.Candidate
+                                    .District,
+
+                            AvailableFoodCount =
+                                item.Candidate
+                                    .AvailableFoodCount,
+
+                            AvailableCategoryCount =
+                                item.Candidate
+                                    .AvailableCategoryCount,
+
+                            MatchingFoodCount =
+                                item.Candidate
+                                    .MatchingFoodCount,
+
+                            MinimumPreparationTimeMinutes =
+                                item.Candidate
+                                    .MinimumPreparationTimeMinutes,
+
+                            DistanceKm =
+                                Math.Round(
+                                    item.DistanceKm,
+                                    2),
+
+                            PopularityScore =
+                                item.PopularityScore
+                        })
+                    .ToList();
+
+            return new PagedResultResponse<
+                DiscoverProducerStorefrontResponse>
+            {
+                Items =
+                    items,
+
+                Page =
+                    safePage,
+
+                PageSize =
+                    safePageSize,
+
+                TotalCount =
+                    totalCount
+            };
+        }
+        public async Task<
+           List<DiscoverProducerStorefrontResponse>>
+           GetCityStorefrontsAsync(
+               string city,
+               double latitude,
+               double longitude,
+               int limit)
+        {
+            var safeLimit =
+                Math.Clamp(
+                    limit,
+                    1,
+                    20);
+
+            var fromUtc =
+                _appClock.UtcNow
+                    .AddDays(-30);
+
+            var candidates =
+                await _producerRepository
+                    .GetCityCandidatesAsync(
+                        city,
+                        fromUtc);
+
+            var normalizedCity =
+                NormalizeDiscoverCity(
+                    city);
+
+            var localCandidates =
+                candidates
+                    .Where(candidate =>
+                        NormalizeDiscoverCity(
+                            candidate.City) ==
+                        normalizedCity &&
+                        double.IsFinite(
+                            candidate.Latitude) &&
+                        double.IsFinite(
+                            candidate.Longitude) &&
+                        candidate.Latitude >=
+                            -90 &&
+                        candidate.Latitude <=
+                            90 &&
+                        candidate.Longitude >=
+                            -180 &&
+                        candidate.Longitude <=
+                            180)
+                    .ToList();
+
+            if (
+                localCandidates.Count ==
+                0
+            )
+            {
+                return new List<
+                    DiscoverProducerStorefrontResponse>();
+            }
+
+            /*
+             * H4 popüler işletme algoritması.
+             * Şehrimde sekmesinde ana sıralama popülerliktir.
+             */
+            var totalReviewCount =
+                localCandidates.Sum(candidate =>
+                    candidate.ReviewCount);
+
+            var globalRatingMean =
+                totalReviewCount > 0
+                    ? localCandidates.Sum(candidate =>
+                            (double)
+                            candidate.Rating *
+                            candidate.ReviewCount) /
+                        totalReviewCount
+                    : 0.0;
+
+            const double priorReviewWeight =
+                5.0;
+
+            var maxDeliveredOrders =
+                localCandidates.Max(candidate =>
+                    candidate
+                        .DeliveredOrderCount30Days);
+
+            var maxDistinctCustomers =
+                localCandidates.Max(candidate =>
+                    candidate
+                        .DistinctCustomerCount30Days);
+
+            var maxFavoriteCount =
+                localCandidates.Max(candidate =>
+                    candidate
+                        .FavoriteCount);
+
+            return localCandidates
+                .Select(candidate =>
+                {
+                    var reviewCount =
+                        candidate.ReviewCount;
+
+                    var bayesianRating =
+                        reviewCount > 0
+                            ? (
+                                (
+                                    reviewCount *
+                                    (double)
+                                    candidate.Rating
+                                ) +
+                                (
+                                    priorReviewWeight *
+                                    globalRatingMean
+                                )
+                              ) /
+                              (
+                                  reviewCount +
+                                  priorReviewWeight
+                              )
+                            : globalRatingMean;
+
+                    var deliveredOrderScore =
+                        NormalizeDiscoverMetric(
+                            candidate
+                                .DeliveredOrderCount30Days,
+                            maxDeliveredOrders);
+
+                    var ratingScore =
+                        Math.Clamp(
+                            bayesianRating /
+                                5.0,
+                            0.0,
+                            1.0);
+
+                    var distinctCustomerScore =
+                        NormalizeDiscoverMetric(
+                            candidate
+                                .DistinctCustomerCount30Days,
+                            maxDistinctCustomers);
+
+                    var favoriteScore =
+                        NormalizeDiscoverMetric(
+                            candidate
+                                .FavoriteCount,
+                            maxFavoriteCount);
+
+                    var repeatCustomerRatio =
+                        candidate
+                            .DistinctCustomerCount30Days >
+                        0
+                            ? (double)
+                              candidate
+                                  .RepeatCustomerCount30Days /
+                              candidate
+                                  .DistinctCustomerCount30Days
+                            : 0.0;
+
+                    var popularityScore =
+                        (
+                            deliveredOrderScore *
+                                0.45 +
+                            ratingScore *
+                                0.25 +
+                            distinctCustomerScore *
+                                0.15 +
+                            favoriteScore *
+                                0.10 +
+                            repeatCustomerRatio *
+                                0.05
+                        ) *
+                        100.0;
+
+                    var distanceKm =
+                        CalculateDiscoverStorefrontDistanceKm(
+                            latitude,
+                            longitude,
+                            candidate.Latitude,
+                            candidate.Longitude);
+
+                    return new
+                    {
+                        Candidate =
+                            candidate,
+
+                        PopularityScore =
+                            Math.Round(
+                                popularityScore,
+                                2),
+
+                        DistanceKm =
+                            distanceKm
+                    };
+                })
+                .OrderByDescending(item =>
+                    item.PopularityScore)
+                .ThenByDescending(item =>
+                    item.Candidate.Rating)
+                .ThenBy(item =>
+                    item.DistanceKm)
+                .ThenBy(item =>
+                    item.Candidate
+                        .BusinessName)
+                .Take(
+                    safeLimit)
+                .Select(item =>
+                    new DiscoverProducerStorefrontResponse
+                    {
+                        ProducerProfileId =
+                            item.Candidate
+                                .ProducerProfileId,
+
+                        BusinessName =
+                            item.Candidate
+                                .BusinessName,
+
+                        Description =
+                            item.Candidate
+                                .Description,
+
+                        BusinessImageUrl =
+                            item.Candidate
+                                .BusinessImageUrl,
+
+                        Rating =
+                            item.Candidate
+                                .Rating,
+
+                        City =
+                            item.Candidate.City,
+
+                        District =
+                            item.Candidate
+                                .District,
+
+                        AvailableFoodCount =
+                            item.Candidate
+                                .AvailableFoodCount,
+
+                        AvailableCategoryCount =
+                            item.Candidate
+                                .AvailableCategoryCount,
+
+                        MatchingFoodCount =
+                            item.Candidate
+                                .MatchingFoodCount,
+
+                        MinimumPreparationTimeMinutes =
+                            item.Candidate
+                                .MinimumPreparationTimeMinutes,
+
+                        DistanceKm =
+                            Math.Round(
+                                item.DistanceKm,
+                                2),
+
+                        PopularityScore =
+                            item.PopularityScore
+                    })
+                .ToList();
+        }
+
+        private static double
+            CalculateDistanceKm(
+                double latitude1,
+                double longitude1,
+                double latitude2,
+                double longitude2)
+        {
+            const double earthRadiusKm =
+                6371.0088;
+
+            var latitudeDifference =
+                DegreesToRadians(
+                    latitude2 - latitude1);
+
+            var longitudeDifference =
+                DegreesToRadians(
+                    longitude2 - longitude1);
+
+            var latitude1Radians =
+                DegreesToRadians(latitude1);
+
+            var latitude2Radians =
+                DegreesToRadians(latitude2);
+
+            var haversine =
+                Math.Pow(
+                    Math.Sin(
+                        latitudeDifference / 2.0),
+                    2.0) +
+                Math.Cos(latitude1Radians) *
+                Math.Cos(latitude2Radians) *
+                Math.Pow(
+                    Math.Sin(
+                        longitudeDifference / 2.0),
+                    2.0);
+
+            haversine =
+                Math.Clamp(
+                    haversine,
+                    0.0,
+                    1.0);
+
+            var angularDistance =
+                2.0 *
+                Math.Asin(
+                    Math.Sqrt(haversine));
+
+            return earthRadiusKm *
+                   angularDistance;
+        }
+
+        private static double
+            DegreesToRadians(
+                double degrees)
+        {
+            return degrees *
+                   Math.PI /
+                   180.0;
+        }
 
         public async Task<
                     List<PopularProducerStorefrontResponse>>
@@ -1202,5 +1983,144 @@ namespace HomemadeFood.Api.Services
             return value == null ||
                    value.Length <= maximumLength;
         }
+        private static double
+          NormalizeDiscoverMetric(
+              int value,
+              int maximumValue)
+        {
+            if (maximumValue <= 0)
+            {
+                return 0.0;
+            }
+
+            return Math.Clamp(
+                (double)value /
+                    maximumValue,
+                0.0,
+                1.0);
+        }
+
+        private static double
+            CalculateDiscoverStorefrontDistanceKm(
+                double latitude1,
+                double longitude1,
+                double latitude2,
+                double longitude2)
+        {
+            const double earthRadiusKm =
+                6371.0088;
+
+            var latitudeDifference =
+                DiscoverDegreesToRadians(
+                    latitude2 -
+                    latitude1);
+
+            var longitudeDifference =
+                DiscoverDegreesToRadians(
+                    longitude2 -
+                    longitude1);
+
+            var latitude1Radians =
+                DiscoverDegreesToRadians(
+                    latitude1);
+
+            var latitude2Radians =
+                DiscoverDegreesToRadians(
+                    latitude2);
+
+            var haversine =
+                Math.Pow(
+                    Math.Sin(
+                        latitudeDifference /
+                        2.0),
+                    2.0) +
+                Math.Cos(
+                    latitude1Radians) *
+                Math.Cos(
+                    latitude2Radians) *
+                Math.Pow(
+                    Math.Sin(
+                        longitudeDifference /
+                        2.0),
+                    2.0);
+
+            haversine =
+                Math.Clamp(
+                    haversine,
+                    0.0,
+                    1.0);
+
+            return earthRadiusKm *
+                (
+                    2.0 *
+                    Math.Asin(
+                        Math.Sqrt(
+                            haversine))
+                );
+        }
+
+        private static double
+            DiscoverDegreesToRadians(
+                double degrees)
+        {
+            return degrees *
+                   Math.PI /
+                   180.0;
+        }
+
+        private static string
+            NormalizeDiscoverCity(
+                string value)
+        {
+            if (
+                string.IsNullOrWhiteSpace(
+                    value)
+            )
+            {
+                return string.Empty;
+            }
+
+            var normalized =
+                value
+                    .Trim()
+                    .ToLower(
+                        CultureInfo
+                            .GetCultureInfo(
+                                "tr-TR"))
+                    .Replace(
+                        'ı',
+                        'i')
+                    .Normalize(
+                        NormalizationForm
+                            .FormD);
+
+            var builder =
+                new StringBuilder();
+
+            foreach (
+                var character in normalized
+            )
+            {
+                if (
+                    CharUnicodeInfo
+                        .GetUnicodeCategory(
+                            character) !=
+                    UnicodeCategory
+                        .NonSpacingMark
+                )
+                {
+                    builder.Append(
+                        character);
+                }
+            }
+
+            return builder
+                .ToString()
+                .Normalize(
+                    NormalizationForm
+                        .FormC);
+        }
+
+
     }
 }

@@ -5,9 +5,11 @@ namespace HomemadeFood.Api.Interfaces
 {
     public interface IProducerRepository
     {
-        Task AddAsync(ProducerProfile producerProfile);
+        Task AddAsync(
+            ProducerProfile producerProfile);
 
-        Task<bool> HasApplicationAsync(int userId);
+        Task<bool> HasApplicationAsync(
+            int userId);
 
         Task<ProducerProfile?> GetByUserIdAsync(
             int userId);
@@ -31,11 +33,25 @@ namespace HomemadeFood.Api.Interfaces
             GetAvailableStorefrontsAsync(
                 int? categoryId);
 
-        /*
-         * H4B:
-         * Service'in popülerlik skorunu hesaplayabilmesi için
-         * görünür işletmelerin ham davranış metriklerini döndürür.
-         */
+        Task<List<ProducerNearbyCandidateReadModel>>
+            GetNearbyCandidatesAsync();
+
+        Task<List<ProducerDiscoverCandidateReadModel>>
+            GetDiscoverCandidatesAsync(
+                int? categoryId,
+                string? search,
+                double minimumLatitude,
+                double maximumLatitude,
+                double minimumLongitude,
+                double maximumLongitude,
+                DateTime fromUtc);
+        Task<List<ProducerDiscoverCandidateReadModel>>
+           GetCityCandidatesAsync(
+               string city,
+               DateTime fromUtc);
+
+
+
         Task<List<ProducerPopularityCandidateReadModel>>
             GetPopularityCandidatesAsync(
                 DateTime fromUtc);

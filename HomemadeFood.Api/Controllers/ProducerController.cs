@@ -88,6 +88,314 @@ namespace HomemadeFood.Api.Controllers
                         storefronts,
                         "Popüler işletmeler başarıyla getirildi."));
         }
+        [AllowAnonymous]
+        [HttpGet("storefronts/nearby")]
+        public async Task<IActionResult>
+            GetNearbyStorefronts(
+                [FromQuery] double latitude,
+                [FromQuery] double longitude,
+                [FromQuery] double radiusKm = 15,
+                [FromQuery] int limit = 6)
+        {
+            if (
+                !double.IsFinite(latitude) ||
+                latitude < -90 ||
+                latitude > 90
+            )
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.BadRequest,
+                        "Enlem değeri -90 ile 90 arasında olmalıdır."));
+            }
+
+            if (
+                !double.IsFinite(longitude) ||
+                longitude < -180 ||
+                longitude > 180
+            )
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.BadRequest,
+                        "Boylam değeri -180 ile 180 arasında olmalıdır."));
+            }
+
+            if (
+                !double.IsFinite(radiusKm) ||
+                radiusKm < 1 ||
+                radiusKm > 50
+            )
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.BadRequest,
+                        "Yarıçap değeri 1 ile 50 km arasında olmalıdır."));
+            }
+
+            if (
+                limit < 1 ||
+                limit > 20
+            )
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.BadRequest,
+                        "Limit değeri 1 ile 20 arasında olmalıdır."));
+            }
+
+            var storefronts =
+                await _producerService
+                    .GetNearbyStorefrontsAsync(
+                        latitude,
+                        longitude,
+                        radiusKm,
+                        limit);
+
+            return Ok(
+                ApiResponse<
+                    List<NearbyProducerStorefrontResponse>>
+                    .Succeed(
+                        storefronts,
+                        "Yakındaki işletmeler başarıyla getirildi."));
+        }
+        [AllowAnonymous]
+        [HttpGet("storefronts/discover")]
+        public async Task<IActionResult>
+           GetDiscoverStorefronts(
+               [FromQuery]
+                double latitude,
+
+               [FromQuery]
+                double longitude,
+
+               [FromQuery]
+                string city,
+
+               [FromQuery]
+                double radiusKm = 30,
+
+               [FromQuery]
+                int page = 1,
+
+               [FromQuery]
+                int pageSize = 20,
+
+               [FromQuery]
+                int? categoryId = null,
+
+               [FromQuery]
+                string? search = null)
+        {
+            if (
+                !double.IsFinite(
+                    latitude) ||
+                latitude < -90 ||
+                latitude > 90
+            )
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes
+                            .BadRequest,
+                        "Enlem değeri -90 ile 90 arasında olmalıdır."));
+            }
+
+            if (
+                !double.IsFinite(
+                    longitude) ||
+                longitude < -180 ||
+                longitude > 180
+            )
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes
+                            .BadRequest,
+                        "Boylam değeri -180 ile 180 arasında olmalıdır."));
+            }
+
+            if (
+                string.IsNullOrWhiteSpace(
+                    city) ||
+                city.Trim().Length >
+                    100
+            )
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes
+                            .BadRequest,
+                        "Şehir bilgisi geçersizdir."));
+            }
+
+            if (
+                !double.IsFinite(
+                    radiusKm) ||
+                radiusKm < 1 ||
+                radiusKm > 50
+            )
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes
+                            .BadRequest,
+                        "Yarıçap değeri 1 ile 50 km arasında olmalıdır."));
+            }
+
+            if (page < 1)
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes
+                            .BadRequest,
+                        "Sayfa değeri en az 1 olmalıdır."));
+            }
+
+            if (
+                pageSize < 1 ||
+                pageSize > 50
+            )
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes
+                            .BadRequest,
+                        "Sayfa boyutu 1 ile 50 arasında olmalıdır."));
+            }
+
+            if (
+                categoryId.HasValue &&
+                categoryId.Value <= 0
+            )
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes
+                            .BadRequest,
+                        "Kategori ID değeri sıfırdan büyük olmalıdır."));
+            }
+
+            if (
+                search != null &&
+                search.Length > 100
+            )
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes
+                            .BadRequest,
+                        "Arama metni en fazla 100 karakter olabilir."));
+            }
+
+            var result =
+                await _producerService
+                    .GetDiscoverStorefrontsAsync(
+                        latitude,
+                        longitude,
+                        city.Trim(),
+                        radiusKm,
+                        page,
+                        pageSize,
+                        categoryId,
+                        search);
+
+            return Ok(
+                ApiResponse<
+                    PagedResultResponse<
+                        DiscoverProducerStorefrontResponse>>
+                    .Succeed(
+                        result,
+                        "Yakınındaki işletmeler başarıyla getirildi."));
+        }
+        [AllowAnonymous]
+        [HttpGet("storefronts/city")]
+        public async Task<IActionResult>
+            GetCityStorefronts(
+                [FromQuery]
+                string city,
+
+                [FromQuery]
+                double latitude,
+
+                [FromQuery]
+                double longitude,
+
+                [FromQuery]
+                int limit = 8)
+        {
+            if (
+                string.IsNullOrWhiteSpace(
+                    city) ||
+                city.Trim().Length >
+                    100
+            )
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes
+                            .BadRequest,
+                        "Şehir bilgisi geçersizdir."));
+            }
+
+            if (
+                !double.IsFinite(
+                    latitude) ||
+                latitude < -90 ||
+                latitude > 90
+            )
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes
+                            .BadRequest,
+                        "Enlem değeri -90 ile 90 arasında olmalıdır."));
+            }
+
+            if (
+                !double.IsFinite(
+                    longitude) ||
+                longitude < -180 ||
+                longitude > 180
+            )
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes
+                            .BadRequest,
+                        "Boylam değeri -180 ile 180 arasında olmalıdır."));
+            }
+
+            if (
+                limit < 1 ||
+                limit > 20
+            )
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes
+                            .BadRequest,
+                        "Limit değeri 1 ile 20 arasında olmalıdır."));
+            }
+
+            var result =
+                await _producerService
+                    .GetCityStorefrontsAsync(
+                        city.Trim(),
+                        latitude,
+                        longitude,
+                        limit);
+
+            return Ok(
+                ApiResponse<
+                    List<
+                        DiscoverProducerStorefrontResponse>>
+                    .Succeed(
+                        result,
+                        "Şehrindeki işletmeler başarıyla getirildi."));
+        }
+
+
 
         [AllowAnonymous]
         [HttpGet(
