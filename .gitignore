@@ -16,3 +16,6 @@ TestResults/
 wwwroot/uploads/foods/
 
 HomemadeFood.Api/wwwroot/uploads/foods/
+
+# Runtime-generated user uploads
+HomemadeFood.Api/wwwroot/uploads/
