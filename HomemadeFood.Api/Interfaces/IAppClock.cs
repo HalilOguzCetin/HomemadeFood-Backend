@@ -4,8 +4,11 @@
     {
         DateTime UtcNow { get; }
 
+        DateTime TurkeyNow { get; }
+
         DateOnly TurkeyToday { get; }
 
-        DateOnly GetTurkeyDate(DateTime utcDateTime);
+        DateOnly GetTurkeyDate(
+            DateTime utcDateTime);
     }
 }

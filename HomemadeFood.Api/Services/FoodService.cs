@@ -70,6 +70,7 @@ namespace HomemadeFood.Api.Services
 
                     Name = request.Name.Trim(),
                     Description = request.Description.Trim(),
+                    Ingredients = request.Ingredients.Trim(),
                     Price = request.Price,
                     PreparationTimeMinutes =
                         request.PreparationTimeMinutes,
@@ -881,6 +882,7 @@ namespace HomemadeFood.Api.Services
 
             food.Name = request.Name.Trim();
             food.Description = request.Description.Trim();
+            food.Ingredients = request.Ingredients.Trim();
             food.Price = request.Price;
 
             food.PreparationTimeMinutes =
@@ -1001,6 +1003,7 @@ namespace HomemadeFood.Api.Services
 
                 Name = food.Name,
                 Description = food.Description,
+                Ingredients = food.Ingredients,
                 Price = food.Price,
 
                 PreparationTimeMinutes =

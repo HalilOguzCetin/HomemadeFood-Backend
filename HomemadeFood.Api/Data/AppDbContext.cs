@@ -1,4 +1,5 @@
 ﻿using HomemadeFood.Api.Entities;
+using HomemadeFood.Api.Constants;
 using Microsoft.EntityFrameworkCore;
 
 namespace HomemadeFood.Api.Data
@@ -19,6 +20,10 @@ namespace HomemadeFood.Api.Data
 
         public DbSet<ProducerProfile>
             ProducerProfiles
+        { get; set; }
+
+        public DbSet<ProducerBusinessHour>
+            ProducerBusinessHours
         { get; set; }
 
         public DbSet<Category> Categories { get; set; }
@@ -203,6 +208,43 @@ namespace HomemadeFood.Api.Data
                 entity.Property(x => x.CapacityVersion)
                     .IsConcurrencyToken()
                     .HasDefaultValue(1);
+
+                entity.Property(x => x.AvailabilityMode)
+                    .HasMaxLength(20)
+                    .IsRequired()
+                    .HasDefaultValue(
+                        ProducerAvailabilityModes.ForceOpen);
+            });
+
+            // -------------------------------------------------
+            // PRODUCER BUSINESS HOURS
+            // -------------------------------------------------
+
+            modelBuilder.Entity<ProducerBusinessHour>(entity =>
+            {
+                entity.HasOne(x => x.ProducerProfile)
+                    .WithMany(x => x.BusinessHours)
+                    .HasForeignKey(x => x.ProducerProfileId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(x => new
+                {
+                    x.ProducerProfileId,
+                    x.DayOfWeek
+                })
+                .IsUnique();
+
+                entity.Property(x => x.DayOfWeek)
+                    .IsRequired();
+
+                entity.Property(x => x.IsClosed)
+                    .IsRequired();
+
+                entity.Property(x => x.OpenTime)
+                    .HasColumnType("time");
+
+                entity.Property(x => x.CloseTime)
+                    .HasColumnType("time");
             });
 
             // -------------------------------------------------
@@ -233,6 +275,11 @@ namespace HomemadeFood.Api.Data
                 entity.Property(x => x.Description)
                     .HasMaxLength(1000)
                     .IsRequired();
+
+                entity.Property(x => x.Ingredients)
+                    .HasMaxLength(2000)
+                    .IsRequired()
+                    .HasDefaultValue(string.Empty);
 
                 entity.Property(x => x.ImageUrl)
                     .HasMaxLength(500)

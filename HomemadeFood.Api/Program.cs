@@ -220,6 +220,15 @@ builder.Services.AddScoped<
     IProducerService,
     ProducerService>();
 
+
+builder.Services.AddScoped<
+    IProducerAvailabilityRepository,
+    ProducerAvailabilityRepository>();
+
+builder.Services.AddScoped<
+    IProducerAvailabilityService,
+    ProducerAvailabilityService>();
+
 builder.Services.AddScoped<
     IProducerImageStorageService,
     ProducerImageStorageService>();

@@ -116,6 +116,5 @@ namespace HomemadeFood.Api.DTOs.Producer
                 "Günlük kapasite 1 ile 1000 arasında olmalıdır.")]
         public int DailyCapacity { get; set; }
 
-        public bool IsAvailable { get; set; }
     }
 }

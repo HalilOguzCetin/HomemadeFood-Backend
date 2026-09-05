@@ -14,6 +14,14 @@
 
         public string Description { get; set; } = string.Empty;
 
+        /*
+         * Üreticinin yemek için girdiği gerçek içerik listesi.
+         * Yeni yemeklerde servis katmanında zorunlu doğrulanacaktır.
+         * Mevcut kayıtların migration sırasında bozulmaması için
+         * veritabanında boş string varsayılanı kullanılır.
+         */
+        public string Ingredients { get; set; } = string.Empty;
+
         public decimal Price { get; set; }
 
         public int PreparationTimeMinutes { get; set; }

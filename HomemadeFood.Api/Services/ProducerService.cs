@@ -623,8 +623,6 @@ namespace HomemadeFood.Api.Services
             producerProfile.CapacityDate =
                 today;
 
-            producerProfile.IsAvailable =
-                request.IsAvailable;
 
             producerProfile.CapacityVersion++;
 

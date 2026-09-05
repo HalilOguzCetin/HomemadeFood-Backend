@@ -44,7 +44,24 @@ namespace HomemadeFood.Api.Entities
         public DateOnly? CapacityDate { get; set; }
         public int CapacityVersion { get; set; } = 1;
 
+        /*
+         * Platform seviyesindeki kullanılabilirlik bayrağıdır.
+         * Admin onayı / hesap durumu gibi temel uygunluğu ifade eder.
+         * Üreticinin anlık açık-kapalı tercihi için kullanılmaz.
+         */
         public bool IsAvailable { get; set; } = true;
+
+        /*
+         * Scheduled   : Çalışma saatlerine göre otomatik
+         * ForceOpen   : Üretici manuel olarak açık
+         * ForceClosed : Üretici manuel olarak kapalı
+         *
+         * Mevcut üreticilerin migration sonrasında yanlışlıkla
+         * kapanmaması için varsayılan ForceOpen tutulur.
+         */
+        public string AvailabilityMode { get; set; } =
+            ProducerAvailabilityModes.ForceOpen;
+
         public bool IsApproved { get; set; } = false;
 
         public string VerificationStatus { get; set; } =
@@ -60,6 +77,9 @@ namespace HomemadeFood.Api.Entities
 
         public DateTime CreatedAt { get; set; } =
             DateTime.UtcNow;
+
+        public ICollection<ProducerBusinessHour> BusinessHours { get; set; } =
+            new List<ProducerBusinessHour>();
 
         public ICollection<Food> Foods { get; set; } =
             new List<Food>();

@@ -16,6 +16,8 @@
 
         public string Description { get; set; } = string.Empty;
 
+        public string Ingredients { get; set; } = string.Empty;
+
         public decimal Price { get; set; }
 
         public int PreparationTimeMinutes { get; set; }

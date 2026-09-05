@@ -25,6 +25,13 @@ namespace HomemadeFood.Api.DTOs.Food
             ErrorMessage = "Açıklama en fazla 1000 karakter olabilir.")]
         public string Description { get; set; } = string.Empty;
 
+        [Required(
+            ErrorMessage = "İçindekiler bilgisi zorunludur.")]
+        [MaxLength(
+            2000,
+            ErrorMessage = "İçindekiler bilgisi en fazla 2000 karakter olabilir.")]
+        public string Ingredients { get; set; } = string.Empty;
+
         [Range(
             typeof(decimal),
             "0.01",
