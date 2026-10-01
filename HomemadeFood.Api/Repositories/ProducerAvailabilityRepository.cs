@@ -1,4 +1,5 @@
-﻿using HomemadeFood.Api.Constants;
+﻿
+using HomemadeFood.Api.Constants;
 using HomemadeFood.Api.Data;
 using HomemadeFood.Api.Entities;
 using HomemadeFood.Api.Interfaces;
@@ -30,6 +31,33 @@ namespace HomemadeFood.Api.Repositories
                     x.VerificationStatus ==
                         ProducerVerificationStatuses
                             .Approved);
+        }
+
+        public async Task<List<ProducerProfile>>
+            GetByIdsWithBusinessHoursAsync(
+                IEnumerable<int>
+                    producerProfileIds)
+        {
+            var ids =
+                producerProfileIds
+                    .Where(id => id > 0)
+                    .Distinct()
+                    .ToArray();
+
+            if (ids.Length == 0)
+            {
+                return new List<
+                    ProducerProfile>();
+            }
+
+            return await _context
+                .ProducerProfiles
+                .AsNoTracking()
+                .Include(x =>
+                    x.BusinessHours)
+                .Where(x =>
+                    ids.Contains(x.Id))
+                .ToListAsync();
         }
 
         public void RemoveBusinessHours(

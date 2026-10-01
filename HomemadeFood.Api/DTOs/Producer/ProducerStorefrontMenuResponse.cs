@@ -14,6 +14,8 @@
 
         public decimal Rating { get; set; }
 
+        public bool IsCurrentlyOpen { get; set; }
+
         /*
          * Müşteriye işletmenin tam açık adresini açmıyoruz.
          * Menü ekranı için şehir / ilçe özeti yeterlidir.

@@ -14,6 +14,8 @@
 
         public decimal Rating { get; set; }
 
+        public bool IsCurrentlyOpen { get; set; }
+
         /*
          * Ana sayfa kartında tam işletme adresi yerine
          * yalnızca şehir/ilçe özet bilgisi kullanılır.

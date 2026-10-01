@@ -6,9 +6,10 @@
      *
      * FoodResponse alanlarını korur ve popülerlik
      * açıklama/test metriklerini ekler.
+     *
+     * IsCurrentlyOpen artık FoodResponse'tan gelir.
      */
-    public class PopularFoodResponse :
-        FoodResponse
+    public class PopularFoodResponse : FoodResponse
     {
         public double PopularityScore { get; set; }
 

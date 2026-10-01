@@ -6,9 +6,10 @@
      *
      * Yalnız müşterinin seçili adresine göre
      * hesaplanan yaklaşık mesafe döner.
+     *
+     * IsCurrentlyOpen artık FoodResponse'tan gelir.
      */
-    public class DiscoverFoodResponse :
-        FoodResponse
+    public class DiscoverFoodResponse : FoodResponse
     {
         public double DistanceKm { get; set; }
 

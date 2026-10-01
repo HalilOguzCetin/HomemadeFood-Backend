@@ -17,5 +17,15 @@ namespace HomemadeFood.Api.Interfaces
             UpdateMyAvailabilityModeAsync(
                 int userId,
                 UpdateProducerAvailabilityModeRequest request);
+
+
+        Task<bool>
+            IsProducerCurrentlyOpenAsync(
+                int producerProfileId);
+
+        Task<IReadOnlyDictionary<int, bool>>
+            GetCurrentOpenStatesAsync(
+                IEnumerable<int>
+                    producerProfileIds);
     }
 }

@@ -63,7 +63,7 @@ namespace HomemadeFood.Api.Controllers
                 return BadRequest(
                     ApiResponse<object>.Fail(
                         ApiResponseCodes.CartItemAdditionFailed,
-                        "Yemek sepete eklenemedi. Yemek satışta olmayabilir, miktar sınırı aşılmış olabilir veya sepette farklı bir üreticinin yemeği bulunabilir."));
+                        "Yemek sepete eklenemedi. İşletme şu anda kapalı, yemek satışta değil, miktar sınırı aşılmış veya sepette farklı bir üreticinin yemeği bulunuyor olabilir."));
             }
 
             return StatusCode(
@@ -106,7 +106,7 @@ namespace HomemadeFood.Api.Controllers
                 return NotFound(
                     ApiResponse<object>.Fail(
                         ApiResponseCodes.CartItemUpdateFailed,
-                        "Sepet veya sepet ürünü bulunamadı."));
+                        "Sepet ürünü güncellenemedi. İşletme kapalı olabilir veya sepet ürünü bulunamamış olabilir."));
             }
 
             return Ok(

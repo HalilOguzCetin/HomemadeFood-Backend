@@ -176,6 +176,76 @@ namespace HomemadeFood.Api.Services
                 producerProfile);
         }
 
+        public async Task<bool>
+            IsProducerCurrentlyOpenAsync(
+                int producerProfileId)
+        {
+            if (producerProfileId <= 0)
+            {
+                return false;
+            }
+
+            var states =
+                await GetCurrentOpenStatesAsync(
+                    new[]
+                    {
+                        producerProfileId
+                    });
+
+            return states.TryGetValue(
+                       producerProfileId,
+                       out var isOpen) &&
+                   isOpen;
+        }
+
+        public async Task<
+            IReadOnlyDictionary<int, bool>>
+            GetCurrentOpenStatesAsync(
+                IEnumerable<int>
+                    producerProfileIds)
+        {
+            var ids =
+                producerProfileIds
+                    .Where(id => id > 0)
+                    .Distinct()
+                    .ToArray();
+
+            if (ids.Length == 0)
+            {
+                return new Dictionary<
+                    int,
+                    bool>();
+            }
+
+            var producerProfiles =
+                await _repository
+                    .GetByIdsWithBusinessHoursAsync(
+                        ids);
+
+            var turkeyNow =
+                _appClock.TurkeyNow;
+
+            var result =
+                ids.ToDictionary(
+                    id => id,
+                    _ => false);
+
+            foreach (
+                var producerProfile
+                in producerProfiles)
+            {
+                result[
+                    producerProfile.Id
+                ] =
+                    ProducerAvailabilityEvaluator
+                        .IsCurrentlyOpen(
+                            producerProfile,
+                            turkeyNow);
+            }
+
+            return result;
+        }
+
         private ProducerAvailabilityResponse
             MapResponse(
                 ProducerProfile producerProfile)

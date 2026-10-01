@@ -8,6 +8,11 @@ namespace HomemadeFood.Api.Interfaces
             GetApprovedByUserIdWithBusinessHoursAsync(
                 int userId);
 
+        Task<List<ProducerProfile>>
+            GetByIdsWithBusinessHoursAsync(
+                IEnumerable<int>
+                    producerProfileIds);
+
         void RemoveBusinessHours(
             IEnumerable<ProducerBusinessHour>
                 businessHours);

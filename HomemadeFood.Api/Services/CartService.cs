@@ -13,15 +13,21 @@ namespace HomemadeFood.Api.Services
         private readonly ICartRepository _cartRepository;
         private readonly IFoodRepository _foodRepository;
         private readonly AppDbContext _dbContext;
+        private readonly IProducerAvailabilityService
+            _producerAvailabilityService;
 
         public CartService(
             ICartRepository cartRepository,
             IFoodRepository foodRepository,
-            AppDbContext dbContext)
+            AppDbContext dbContext,
+            IProducerAvailabilityService
+                producerAvailabilityService)
         {
             _cartRepository = cartRepository;
             _foodRepository = foodRepository;
             _dbContext = dbContext;
+            _producerAvailabilityService =
+                producerAvailabilityService;
         }
 
         public async Task<CartResponse> GetCartAsync(
@@ -31,7 +37,20 @@ namespace HomemadeFood.Api.Services
                 await _cartRepository
                     .GetByUserIdWithDetailsAsync(userId);
 
-            return MapToResponse(cart);
+            var response =
+                MapToResponse(cart);
+
+            if (cart == null)
+            {
+                return response;
+            }
+
+            response.IsCurrentlyOpen =
+                await _producerAvailabilityService
+                    .IsProducerCurrentlyOpenAsync(
+                        cart.ProducerProfileId);
+
+            return response;
         }
 
         public async Task<CartResponse?> AddItemAsync(
@@ -46,6 +65,25 @@ namespace HomemadeFood.Api.Services
             // Bulunmayan veya satışta olmayan yemek
             // sepete eklenemez.
             if (food == null)
+            {
+                return null;
+            }
+
+            /*
+             * İşletmenin platform uygunluğu,
+             * haftalık çalışma programı ve manuel
+             * açık/kapalı override bilgisi birlikte
+             * değerlendirilir.
+             *
+             * Kapalı işletmeden yeni ürün sepete
+             * eklenemez.
+             */
+            var isProducerCurrentlyOpen =
+                await _producerAvailabilityService
+                    .IsProducerCurrentlyOpenAsync(
+                        food.ProducerProfileId);
+
+            if (!isProducerCurrentlyOpen)
             {
                 return null;
             }
@@ -187,6 +225,28 @@ namespace HomemadeFood.Api.Services
                 return null;
             }
 
+            /*
+             * İşletme kapandıktan sonra müşteri
+             * sepetindeki miktarı azaltabilir.
+             * Fakat miktar artırmak yeni sipariş
+             * talebi olduğu için işletme açık olmalıdır.
+             */
+            if (
+                request.Quantity >
+                    cartItem.Quantity
+            )
+            {
+                var isProducerCurrentlyOpen =
+                    await _producerAvailabilityService
+                        .IsProducerCurrentlyOpenAsync(
+                            cart.ProducerProfileId);
+
+                if (!isProducerCurrentlyOpen)
+                {
+                    return null;
+                }
+            }
+
             cartItem.Quantity = request.Quantity;
             cart.UpdatedAt = DateTime.UtcNow;
 
@@ -296,8 +356,10 @@ namespace HomemadeFood.Api.Services
 
                     BusinessName = string.Empty,
 
+                    IsCurrentlyOpen = false,
+
                     Items =
-         new List<CartItemResponse>(),
+                        new List<CartItemResponse>(),
 
                     TotalQuantity = 0,
 
@@ -352,21 +414,21 @@ namespace HomemadeFood.Api.Services
                 CartId = cart.Id,
 
                 ProducerProfileId =
-         cart.ProducerProfileId,
+                    cart.ProducerProfileId,
 
                 RecommendationSearchId =
-         cart.RecommendationSearchId,
+                    cart.RecommendationSearchId,
 
                 BusinessName =
-         cart.ProducerProfile.BusinessName,
+                    cart.ProducerProfile.BusinessName,
 
                 Items = items,
 
                 TotalQuantity =
-         items.Sum(x => x.Quantity),
+                    items.Sum(x => x.Quantity),
 
                 TotalPrice =
-         items.Sum(x => x.LineTotal)
+                    items.Sum(x => x.LineTotal)
             };
         }
     }

@@ -11,6 +11,8 @@
         public string BusinessName { get; set; }
             = string.Empty;
 
+        public bool IsCurrentlyOpen { get; set; }
+
         public List<CartItemResponse> Items { get; set; }
             = new List<CartItemResponse>();
 

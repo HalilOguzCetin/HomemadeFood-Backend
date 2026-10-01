@@ -13,15 +13,21 @@ namespace HomemadeFood.Api.Services
         private readonly IFoodRepository _foodRepository;
         private readonly IProducerRepository _producerRepository;
         private readonly IFoodImageStorageService _foodImageStorageService;
+        private readonly IProducerAvailabilityService
+            _producerAvailabilityService;
 
         public FoodService(
             IFoodRepository foodRepository,
             IProducerRepository producerRepository,
-            IFoodImageStorageService foodImageStorageService)
+            IFoodImageStorageService foodImageStorageService,
+            IProducerAvailabilityService
+                producerAvailabilityService)
         {
             _foodRepository = foodRepository;
             _producerRepository = producerRepository;
             _foodImageStorageService = foodImageStorageService;
+            _producerAvailabilityService =
+                producerAvailabilityService;
         }
 
         public async Task<FoodResponse?> CreateFoodAsync(
@@ -84,7 +90,14 @@ namespace HomemadeFood.Api.Services
                 await _foodRepository.AddAsync(food);
                 await _foodRepository.SaveChangesAsync();
 
-                return MapToResponse(food);
+                var isCurrentlyOpen =
+                    await _producerAvailabilityService
+                        .IsProducerCurrentlyOpenAsync(
+                            food.ProducerProfileId);
+
+                return MapToResponse(
+                    food,
+                    isCurrentlyOpen);
             }
             catch
             {
@@ -112,8 +125,27 @@ namespace HomemadeFood.Api.Services
                         categoryId,
                         search);
 
+            var openStates =
+                await _producerAvailabilityService
+                    .GetCurrentOpenStatesAsync(
+                        foods
+                            .Select(x =>
+                                x.ProducerProfileId)
+                            .Distinct());
+
             return foods
-                .Select(MapToResponse)
+                .Select(food =>
+                {
+                    var isCurrentlyOpen =
+                        openStates.TryGetValue(
+                            food.ProducerProfileId,
+                            out var isOpen) &&
+                        isOpen;
+
+                    return MapToResponse(
+                        food,
+                        isCurrentlyOpen);
+                })
                 .ToList();
         }
 
@@ -269,6 +301,15 @@ namespace HomemadeFood.Api.Services
                 new List<
                     PopularFoodResponse>();
 
+            var openStates =
+                await _producerAvailabilityService
+                    .GetCurrentOpenStatesAsync(
+                        ranked
+                            .Select(item =>
+                                item.Candidate
+                                    .ProducerProfileId)
+                            .Distinct());
+
             var producerFoodCounts =
                 new Dictionary<int, int>();
 
@@ -328,6 +369,13 @@ namespace HomemadeFood.Api.Services
                         IsAvailable =
                             item.Candidate
                                 .IsAvailable,
+
+                        IsCurrentlyOpen =
+                            openStates.TryGetValue(
+                                item.Candidate
+                                    .ProducerProfileId,
+                                out var isOpen) &&
+                            isOpen,
 
                         CreatedAt =
                             item.Candidate
@@ -623,7 +671,14 @@ namespace HomemadeFood.Api.Services
             var totalCount =
                 ranked.Count;
 
-            var items =
+            /*
+             * Yalnız bu sayfada dönecek producer'ların
+             * güncel açık/kapalı durumunu tek seferde alıyoruz.
+             *
+             * Food.IsAvailable ile işletmenin çalışma durumu
+             * birbirinden bağımsız tutulur.
+             */
+            var pagedRanked =
                 ranked
                     .Skip(
                         (
@@ -633,6 +688,18 @@ namespace HomemadeFood.Api.Services
                         safePageSize)
                     .Take(
                         safePageSize)
+                    .ToList();
+
+            var currentOpenStates =
+                await _producerAvailabilityService
+                    .GetCurrentOpenStatesAsync(
+                        pagedRanked
+                            .Select(item =>
+                                item.Candidate
+                                    .ProducerProfileId));
+
+            var items =
+                pagedRanked
                     .Select(item =>
                         new DiscoverFoodResponse
                         {
@@ -676,6 +743,14 @@ namespace HomemadeFood.Api.Services
                             IsAvailable =
                                 item.Candidate
                                     .IsAvailable,
+
+                            IsCurrentlyOpen =
+                                currentOpenStates
+                                    .TryGetValue(
+                                        item.Candidate
+                                            .ProducerProfileId,
+                                        out var isCurrentlyOpen) &&
+                                isCurrentlyOpen,
 
                             CreatedAt =
                                 item.Candidate
@@ -775,7 +850,14 @@ namespace HomemadeFood.Api.Services
                 return null;
             }
 
-            return MapToResponse(food);
+            var isCurrentlyOpen =
+                await _producerAvailabilityService
+                    .IsProducerCurrentlyOpenAsync(
+                        food.ProducerProfileId);
+
+            return MapToResponse(
+                food,
+                isCurrentlyOpen);
         }
 
         public async Task<List<FoodResponse>>
@@ -795,8 +877,27 @@ namespace HomemadeFood.Api.Services
                     .GetByProducerProfileIdAsync(
                         producerProfile.Id);
 
+            var openStates =
+                await _producerAvailabilityService
+                    .GetCurrentOpenStatesAsync(
+                        foods
+                            .Select(x =>
+                                x.ProducerProfileId)
+                            .Distinct());
+
             return foods
-                .Select(MapToResponse)
+                .Select(food =>
+                {
+                    var isCurrentlyOpen =
+                        openStates.TryGetValue(
+                            food.ProducerProfileId,
+                            out var isOpen) &&
+                        isOpen;
+
+                    return MapToResponse(
+                        food,
+                        isCurrentlyOpen);
+                })
                 .ToList();
         }
         public async Task<FoodResponse?> GetMyFoodByIdAsync(
@@ -823,7 +924,14 @@ namespace HomemadeFood.Api.Services
                 return null;
             }
 
-            return MapToResponse(food);
+            var isCurrentlyOpen =
+                await _producerAvailabilityService
+                    .IsProducerCurrentlyOpenAsync(
+                        food.ProducerProfileId);
+
+            return MapToResponse(
+                food,
+                isCurrentlyOpen);
         }
 
         public async Task<FoodResponse?> UpdateFoodAsync(
@@ -931,7 +1039,14 @@ namespace HomemadeFood.Api.Services
                     previousImageUrl);
             }
 
-            return MapToResponse(food);
+            var isCurrentlyOpen =
+                await _producerAvailabilityService
+                    .IsProducerCurrentlyOpenAsync(
+                        food.ProducerProfileId);
+
+            return MapToResponse(
+                food,
+                isCurrentlyOpen);
         }
 
         public async Task<bool> DeleteFoodAsync(
@@ -987,7 +1102,9 @@ namespace HomemadeFood.Api.Services
             }
         }
 
-        private static FoodResponse MapToResponse(Food food)
+        private static FoodResponse MapToResponse(
+            Food food,
+            bool isCurrentlyOpen)
         {
             return new FoodResponse
             {
@@ -1011,6 +1128,7 @@ namespace HomemadeFood.Api.Services
 
                 ImageUrl = food.ImageUrl,
                 IsAvailable = food.IsAvailable,
+                IsCurrentlyOpen = isCurrentlyOpen,
                 CreatedAt = food.CreatedAt
             };
         }

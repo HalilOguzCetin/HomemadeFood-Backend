@@ -16,16 +16,22 @@ namespace HomemadeFood.Api.Services
         private readonly IProducerImageStorageService
             _producerImageStorageService;
         private readonly IAppClock _appClock;
+        private readonly IProducerAvailabilityService
+            _producerAvailabilityService;
 
         public ProducerService(
             IProducerRepository producerRepository,
             IProducerImageStorageService producerImageStorageService,
-            IAppClock appClock)
+            IAppClock appClock,
+            IProducerAvailabilityService
+                producerAvailabilityService)
         {
             _producerRepository = producerRepository;
             _producerImageStorageService =
                 producerImageStorageService;
             _appClock = appClock;
+            _producerAvailabilityService =
+                producerAvailabilityService;
         }
 
         public async Task<bool> ApplyAsync(
@@ -681,7 +687,8 @@ namespace HomemadeFood.Api.Services
                     .GetAvailableStorefrontsAsync(
                         categoryId);
 
-            return storefronts
+            var result =
+                storefronts
                 .Select(storefront =>
                     new ProducerStorefrontSummaryResponse
                     {
@@ -725,6 +732,11 @@ namespace HomemadeFood.Api.Services
                                 .MinimumPreparationTimeMinutes
                     })
                 .ToList();
+
+            await ApplyCurrentOpenStatesAsync(
+                result);
+
+            return result;
         }
         public async Task<
             List<NearbyProducerStorefrontResponse>>
@@ -750,7 +762,8 @@ namespace HomemadeFood.Api.Services
                     NearbyProducerStorefrontResponse>();
             }
 
-            return candidates
+            var result =
+                candidates
                 .Where(candidate =>
                     double.IsFinite(candidate.Latitude) &&
                     double.IsFinite(candidate.Longitude) &&
@@ -824,6 +837,11 @@ namespace HomemadeFood.Api.Services
                                 2)
                     })
                 .ToList();
+
+            await ApplyCurrentOpenStatesAsync(
+                result);
+
+            return result;
         }
         public async Task<
            PagedResultResponse<
@@ -1172,6 +1190,9 @@ namespace HomemadeFood.Api.Services
                         })
                     .ToList();
 
+            await ApplyCurrentOpenStatesAsync(
+                items);
+
             return new PagedResultResponse<
                 DiscoverProducerStorefrontResponse>
             {
@@ -1280,7 +1301,8 @@ namespace HomemadeFood.Api.Services
                     candidate
                         .FavoriteCount);
 
-            return localCandidates
+            var result =
+                localCandidates
                 .Select(candidate =>
                 {
                     var reviewCount =
@@ -1443,6 +1465,12 @@ namespace HomemadeFood.Api.Services
                             item.PopularityScore
                     })
                 .ToList();
+
+            await ApplyCurrentOpenStatesAsync(
+                result);
+
+            return result;
+
         }
 
         private static double
@@ -1557,7 +1585,8 @@ namespace HomemadeFood.Api.Services
                 candidates.Max(candidate =>
                     candidate.FavoriteCount);
 
-            return candidates
+            var result =
+                candidates
                 .Select(candidate =>
                 {
                     var reviewCount =
@@ -1688,6 +1717,12 @@ namespace HomemadeFood.Api.Services
                             item.Candidate.FavoriteCount
                     })
                 .ToList();
+
+            await ApplyCurrentOpenStatesAsync(
+                result);
+
+            return result;
+
         }
 
         private static double NormalizePopularityMetric(
@@ -1704,6 +1739,41 @@ namespace HomemadeFood.Api.Services
                 (double)value / maximum,
                 0.0,
                 1.0);
+        }
+
+        private async Task
+            ApplyCurrentOpenStatesAsync(
+                IEnumerable<
+                    ProducerStorefrontSummaryResponse>
+                    storefronts)
+        {
+            var storefrontList =
+                storefronts.ToList();
+
+            if (storefrontList.Count == 0)
+            {
+                return;
+            }
+
+            var openStates =
+                await _producerAvailabilityService
+                    .GetCurrentOpenStatesAsync(
+                        storefrontList.Select(
+                            storefront =>
+                                storefront
+                                    .ProducerProfileId));
+
+            foreach (
+                var storefront
+                in storefrontList)
+            {
+                storefront.IsCurrentlyOpen =
+                    openStates.TryGetValue(
+                        storefront
+                            .ProducerProfileId,
+                        out var isOpen) &&
+                    isOpen;
+            }
         }
 
         public async Task<
@@ -1801,6 +1871,11 @@ namespace HomemadeFood.Api.Services
 
                 Rating =
                     storefront.Rating,
+
+                IsCurrentlyOpen =
+                    await _producerAvailabilityService
+                        .IsProducerCurrentlyOpenAsync(
+                            producerProfileId),
 
                 City =
                     storefront.City,

@@ -33,14 +33,6 @@ namespace HomemadeFood.Api.Controllers
                         "Kullanıcı bilgisi alınamadı."));
             }
 
-            /*
-             * Telefon doğrulaması bir UI tercihi değil,
-             * server-side sipariş iş kuralıdır.
-             *
-             * Android bunu önceden kontrol edecek; fakat
-             * API doğrudan çağrılsa bile sipariş burada
-             * engellenir.
-             */
             var hasVerifiedPhone =
                 await _orderService
                     .IsPhoneVerifiedForOrderAsync(
@@ -68,7 +60,7 @@ namespace HomemadeFood.Api.Controllers
                 return BadRequest(
                     ApiResponse<OrderResponse>.Fail(
                         ApiResponseCodes.OrderCreationFailed,
-                        "Sipariş oluşturulamadı. Sepet boş, adres geçersiz, yemek satış dışı veya üretici kapasitesi yetersiz olabilir."));
+                        "Sipariş oluşturulamadı. İşletme şu anda kapalı, sepet boş, adres geçersiz, yemek satış dışı veya üretici kapasitesi yetersiz olabilir."));
             }
 
             var response =

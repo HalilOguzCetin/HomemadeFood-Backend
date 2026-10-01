@@ -26,6 +26,8 @@
 
         public bool IsAvailable { get; set; }
 
+        public bool IsCurrentlyOpen { get; set; }
+
         public DateTime CreatedAt { get; set; }
     }
 }

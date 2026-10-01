@@ -18,6 +18,10 @@ namespace HomemadeFood.Api.Services
             _producerCapacityService;
 
         private readonly IAppClock _appClock;
+
+        private readonly IProducerAvailabilityService
+            _producerAvailabilityService;
+
         private readonly AppDbContext _dbContext;
 
         public OrderService(
@@ -26,6 +30,8 @@ namespace HomemadeFood.Api.Services
             IAddressRepository addressRepository,
             IProducerCapacityService producerCapacityService,
             IAppClock appClock,
+            IProducerAvailabilityService
+                producerAvailabilityService,
             AppDbContext dbContext)
         {
             _orderRepository = orderRepository;
@@ -36,6 +42,10 @@ namespace HomemadeFood.Api.Services
                 producerCapacityService;
 
             _appClock = appClock;
+
+            _producerAvailabilityService =
+                producerAvailabilityService;
+
             _dbContext = dbContext;
         }
 
@@ -48,16 +58,6 @@ namespace HomemadeFood.Api.Services
                 return false;
             }
 
-            /*
-             * Sipariş iş kuralı:
-             * yalnız aktif Customer + gerçekten doğrulanmış
-             * canonical telefon bilgisi olan hesap sipariş
-             * oluşturabilir.
-             *
-             * Sadece IsPhoneVerified=true kontrolüyle
-             * yetinmiyoruz; doğrulama zamanını ve normalize
-             * telefon değerini de tutarlı bekliyoruz.
-             */
             return await _dbContext.Users
                 .AsNoTracking()
                 .AnyAsync(user =>
@@ -74,15 +74,6 @@ namespace HomemadeFood.Api.Services
             int customerId,
             CreateOrderRequest request)
         {
-            /*
-             * Controller özel PHONE_VERIFICATION_REQUIRED
-             * response'u üretir.
-             *
-             * Buna rağmen iş kuralını service içinde de
-             * yeniden kontrol ediyoruz. Böylece service
-             * başka bir yerden çağrılsa dahi kural
-             * atlanamaz.
-             */
             var hasVerifiedPhone =
                 await IsPhoneVerifiedForOrderAsync(
                     customerId);
@@ -92,8 +83,6 @@ namespace HomemadeFood.Api.Services
                 return null;
             }
 
-            // Gönderilen adres gerçekten giriş yapan
-            // müşteriye ait mi?
             var address =
                 await _addressRepository
                     .GetByIdAndUserIdAsync(
@@ -105,8 +94,6 @@ namespace HomemadeFood.Api.Services
                 return null;
             }
 
-            // Sepeti; yemek, kategori ve üretici
-            // ayrıntılarıyla birlikte getir.
             var cart =
                 await _cartRepository
                     .GetForOrderCreationAsync(
@@ -121,8 +108,6 @@ namespace HomemadeFood.Api.Services
             var producer =
                 cart.ProducerProfile;
 
-            // Üretici hâlâ onaylı ve
-            // sipariş almaya açık mı?
             if (!producer.IsApproved ||
                 !producer.IsAvailable ||
                 producer.VerificationStatus !=
@@ -131,8 +116,16 @@ namespace HomemadeFood.Api.Services
                 return null;
             }
 
-            // Sepetteki bütün yemekleri
-            // sipariş öncesinde tekrar doğrula.
+            var isProducerCurrentlyOpen =
+                await _producerAvailabilityService
+                    .IsProducerCurrentlyOpenAsync(
+                        cart.ProducerProfileId);
+
+            if (!isProducerCurrentlyOpen)
+            {
+                return null;
+            }
+
             var hasInvalidItem =
                 cart.Items.Any(
                     item =>
@@ -150,15 +143,6 @@ namespace HomemadeFood.Api.Services
                 return null;
             }
 
-            /*
-             * Normal yemek listesinden oluşturulan siparişlerde:
-             *
-             * RecommendationSearchId = null
-             * SuitabilityScore = 0
-             *
-             * Öneri ekranından oluşturulan siparişlerdeyse
-             * aşağıdaki değerler doğrulanarak doldurulur.
-             */
             int? recommendationSearchId = null;
 
             decimal suitabilityScore = 0;
@@ -177,9 +161,6 @@ namespace HomemadeFood.Api.Services
                                 x.CustomerUserId ==
                                 customerId);
 
-                // Öneri araması bulunamadıysa veya
-                // müşteri henüz bir öneri seçmediyse
-                // sipariş oluşturulmaz.
                 if (searchRecord == null ||
                     !searchRecord.SelectedFoodId.HasValue ||
                     !searchRecord
@@ -190,8 +171,6 @@ namespace HomemadeFood.Api.Services
                     return null;
                 }
 
-                // Öneride seçilen üretici ile
-                // sepetteki üretici aynı olmalıdır.
                 if (searchRecord
                         .SelectedProducerProfileId
                         .Value !=
@@ -200,8 +179,6 @@ namespace HomemadeFood.Api.Services
                     return null;
                 }
 
-                // Öneride seçilen yemek gerçekten
-                // sepette bulunmalıdır.
                 var selectedFoodIsInCart =
                     cart.Items.Any(
                         item =>
@@ -215,8 +192,6 @@ namespace HomemadeFood.Api.Services
                     return null;
                 }
 
-                // Seçimin, arama sırasında kullanıcıya
-                // gösterilmiş gerçek bir aday olduğu doğrulanır.
                 var selectedCandidate =
                     await _dbContext
                         .RecommendationCandidates
@@ -252,13 +227,10 @@ namespace HomemadeFood.Api.Services
                         2);
             }
 
-            // Metot içinde yalnızca bir kez tanımlanır.
             var totalQuantity =
                 cart.Items.Sum(
                     item => item.Quantity);
 
-            // Üreticinin kalan günlük kapasitesi
-            // toplam sipariş miktarı için yeterli mi?
             var capacityReserved =
                 _producerCapacityService.TryReserve(
                     producer,
@@ -269,8 +241,6 @@ namespace HomemadeFood.Api.Services
                 return null;
             }
 
-            // Toplam fiyat, istemciden gelen bir değerden
-            // değil veritabanındaki güncel fiyatlardan hesaplanır.
             var totalPrice =
                 cart.Items.Sum(
                     item =>
@@ -356,26 +326,11 @@ namespace HomemadeFood.Api.Services
                     });
             }
 
-            // Siparişi aynı DbContext içerisine ekle.
             await _orderRepository
                 .AddAsync(order);
 
-            // Sipariş oluşturulduğu için sepeti kaldır.
             _cartRepository.Remove(cart);
 
-            /*
-             * Repository sınıfları ve AppDbContext aynı scoped
-             * DbContext örneğini kullandığı için tek SaveChanges:
-             *
-             * - Order kaydını ekler
-             * - OrderItem kayıtlarını ekler
-             * - Üretici kapasitesini azaltır
-             * - Öneri bağlantısını siparişe kaydeder
-             * - Sepeti ve CartItem kayıtlarını siler
-             *
-             * İşlemlerden biri başarısız olursa değişikliklerin
-             * hiçbiri veritabanına kalıcı olarak yazılmaz.
-             */
             try
             {
                 await _orderRepository
@@ -385,16 +340,6 @@ namespace HomemadeFood.Api.Services
             }
             catch (DbUpdateConcurrencyException)
             {
-                /*
-                 * Başka bir sipariş aynı üreticinin
-                 * kapasitesini bizden önce değiştirmiştir.
-                 *
-                 * SaveChanges başarısız olduğu için:
-                 *
-                 * - Sipariş kaydedilmez
-                 * - Kapasite azaltılmaz
-                 * - Sepet silinmez
-                 */
                 return null;
             }
         }
@@ -448,8 +393,6 @@ namespace HomemadeFood.Api.Services
                 return null;
             }
 
-            // Müşteri yalnızca üretici henüz
-            // kabul etmeden Pending siparişi iptal edebilir.
             if (!string.Equals(
                     order.Status,
                     OrderStatuses.Pending,
@@ -462,8 +405,6 @@ namespace HomemadeFood.Api.Services
                 order.OrderItems.Sum(
                     item => item.Quantity);
 
-            // Sipariş oluşturulurken azaltılan
-            // kapasiteyi uygun durumda geri ver.
             _producerCapacityService
                 .RestoreForOrder(
                     order.ProducerProfile,
@@ -475,6 +416,7 @@ namespace HomemadeFood.Api.Services
 
             order.StatusUpdatedAt =
                 _appClock.UtcNow;
+
             order.StatusVersion++;
 
             try
@@ -486,11 +428,6 @@ namespace HomemadeFood.Api.Services
             }
             catch (DbUpdateConcurrencyException)
             {
-                /*
-                 * Kapasite başka bir işlem tarafından aynı anda
-                 * değiştirildiyse iptal işlemi güvenli biçimde
-                 * başarısız olur.
-                 */
                 return null;
             }
         }
@@ -508,11 +445,12 @@ namespace HomemadeFood.Api.Services
 
                 BusinessName =
                     order.ProducerProfile.BusinessName,
+
                 RecommendationSearchId =
-    order.RecommendationSearchId,
+                    order.RecommendationSearchId,
 
                 SuitabilityScore =
-    order.SuitabilityScore,
+                    order.SuitabilityScore,
 
                 DeliveryAddressTitle =
                     order.DeliveryAddressTitle,

@@ -14,12 +14,20 @@ namespace HomemadeFood.Api.Services
         private readonly AppDbContext _dbContext;
         private readonly IAppClock _appClock;
 
+        private readonly IProducerAvailabilityService
+            _producerAvailabilityService;
+
         public ProducerRecommendationService(
             AppDbContext dbContext,
-            IAppClock appClock)
+            IAppClock appClock,
+            IProducerAvailabilityService
+                producerAvailabilityService)
         {
             _dbContext = dbContext;
             _appClock = appClock;
+
+            _producerAvailabilityService =
+                producerAvailabilityService;
         }
 
         public async Task<ProducerRecommendationResultResponse?>
@@ -112,11 +120,29 @@ namespace HomemadeFood.Api.Services
                     })
                     .ToListAsync();
 
+            var openStates =
+                await _producerAvailabilityService
+                    .GetCurrentOpenStatesAsync(
+                        candidates.Select(
+                            candidate =>
+                                candidate
+                                    .ProducerProfileId));
+
             var recommendations =
                 new List<ProducerRecommendationResponse>();
 
             foreach (var candidate in candidates)
             {
+                if (
+                    !openStates.TryGetValue(
+                        candidate.ProducerProfileId,
+                        out var isCurrentlyOpen) ||
+                    !isCurrentlyOpen
+                )
+                {
+                    continue;
+                }
+
                 var currentCapacity =
                     candidate.CapacityDate == today
                         ? candidate.RemainingCapacity
@@ -356,10 +382,11 @@ namespace HomemadeFood.Api.Services
                     topRecommendations
             };
         }
+
         public async Task<RecommendationSelectionResult>
-    SelectRecommendationAsync(
-        int customerUserId,
-        ProducerRecommendationSelectionRequest request)
+            SelectRecommendationAsync(
+                int customerUserId,
+                ProducerRecommendationSelectionRequest request)
         {
             var searchRecord =
                 await _dbContext.RecommendationSearches
@@ -391,6 +418,20 @@ namespace HomemadeFood.Api.Services
                     ApiResponseCodes
                         .RecommendationCandidateNotFound,
                     "Seçilen yemek bu öneri aramasındaki adaylar arasında bulunamadı.");
+            }
+
+            var isProducerCurrentlyOpen =
+                await _producerAvailabilityService
+                    .IsProducerCurrentlyOpenAsync(
+                        selectedCandidate
+                            .ProducerProfileId);
+
+            if (!isProducerCurrentlyOpen)
+            {
+                return RecommendationSelectionResult.Fail(
+                    ApiResponseCodes
+                        .RecommendationCandidateNotFound,
+                    "Seçilen işletme şu anda kapalı.");
             }
 
             if (searchRecord.SelectedFoodId.HasValue)
