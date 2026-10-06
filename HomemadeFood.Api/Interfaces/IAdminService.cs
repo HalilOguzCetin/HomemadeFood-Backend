@@ -17,6 +17,12 @@ namespace HomemadeFood.Api.Interfaces
             int adminUserId,
             string rejectionReason);
 
+        Task<bool> UpdateProducerVerificationStatusAsync(
+            int producerProfileId,
+            int adminUserId,
+            string targetStatus,
+            string? reviewNote);
+
         Task<List<AdminUserListItemResponse>>
             GetUsersAsync(
                 string? role,

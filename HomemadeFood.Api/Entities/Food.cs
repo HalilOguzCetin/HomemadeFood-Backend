@@ -1,4 +1,6 @@
-﻿namespace HomemadeFood.Api.Entities
+﻿using HomemadeFood.Api.Constants;
+
+namespace HomemadeFood.Api.Entities
 {
     public class Food
     {
@@ -16,25 +18,54 @@
 
         /*
          * Üreticinin yemek için girdiği gerçek içerik listesi.
-         * Yeni yemeklerde servis katmanında zorunlu doğrulanacaktır.
-         * Mevcut kayıtların migration sırasında bozulmaması için
-         * veritabanında boş string varsayılanı kullanılır.
+         * Alerjen bilgisi bu serbest metinden türetilmez;
+         * FoodAllergens ile ayrıca yapılandırılmış olarak tutulur.
          */
         public string Ingredients { get; set; } = string.Empty;
 
         public decimal Price { get; set; }
 
+        /*
+         * Fiyatın ve miktarın hangi üretim birimine ait olduğunu
+         * belirtir: Portion, Tray, Piece, Kilogram, Liter,
+         * Package veya Other.
+         */
+        public string UnitType { get; set; } =
+            FoodUnitTypes.Portion;
+
+        /*
+         * Bu yemeğin bir takvim gününde üretilebilecek toplam
+         * miktarıdır. Kalan kapasite daha sonra siparişlerden
+         * türetilir; burada ayrıca mutable RemainingCapacity
+         * tutulmaz.
+         */
+        public int DailyCapacity { get; set; } = 1;
+
         public int PreparationTimeMinutes { get; set; }
+
+        /*
+         * Siparişin üretici tarafından hazırlanabilmesi için
+         * gereken minimum ön bildirim süresidir.
+         * 0 = ayrıca minimum ön süre gerekmiyor.
+         */
+        public int MinimumOrderLeadTimeMinutes { get; set; }
 
         public string ImageUrl { get; set; } = string.Empty;
 
         public bool IsAvailable { get; set; } = true;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-        public ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
-        public ICollection<Favorite> Favorites { get; set; }
-    = new List<Favorite>();
-        public ICollection<CartItem> CartItems { get; set; }
-    = new List<CartItem>();
+
+        public ICollection<FoodAllergen> Allergens { get; set; } =
+            new List<FoodAllergen>();
+
+        public ICollection<OrderItem> OrderItems { get; set; } =
+            new List<OrderItem>();
+
+        public ICollection<Favorite> Favorites { get; set; } =
+            new List<Favorite>();
+
+        public ICollection<CartItem> CartItems { get; set; } =
+            new List<CartItem>();
     }
 }

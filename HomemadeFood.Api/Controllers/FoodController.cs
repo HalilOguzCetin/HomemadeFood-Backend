@@ -485,6 +485,60 @@ namespace HomemadeFood.Api.Controllers
                     "Yemek başarıyla güncellendi."));
         }
 
+        [HttpPut(
+            "my-foods/{id:int}/availability")]
+        public async Task<IActionResult>
+            UpdateFoodAvailability(
+                int id,
+
+                [FromBody]
+                UpdateFoodAvailabilityRequest request)
+        {
+            if (id <= 0)
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.BadRequest,
+                        "Yemek ID değeri sıfırdan büyük olmalıdır."));
+            }
+
+            if (!TryGetUserId(
+                    out var userId))
+            {
+                return Unauthorized(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes
+                            .Unauthorized,
+                        "Kullanıcı bilgisi alınamadı."));
+            }
+
+            var food =
+                await _foodService
+                    .UpdateFoodAvailabilityAsync(
+                        userId,
+                        id,
+                        request.IsAvailable);
+
+            if (food == null)
+            {
+                return NotFound(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes
+                            .FoodNotFound,
+                        "Yemek bulunamadı veya bu yemek size ait değil."));
+            }
+
+            var message =
+                request.IsAvailable
+                    ? "Yemek tekrar satışa açıldı."
+                    : "Yemek satıştan kaldırıldı.";
+
+            return Ok(
+                ApiResponse<object>.Succeed(
+                    food,
+                    message));
+        }
+
         [HttpDelete("{id:int}")]
         public async Task<IActionResult>
             DeleteFood(

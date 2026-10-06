@@ -219,6 +219,11 @@ namespace HomemadeFood.Api.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<int>("DailyCapacity")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1);
+
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasMaxLength(1000)
@@ -239,6 +244,11 @@ namespace HomemadeFood.Api.Migrations
                     b.Property<bool>("IsAvailable")
                         .HasColumnType("tinyint(1)");
 
+                    b.Property<int>("MinimumOrderLeadTimeMinutes")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -254,6 +264,13 @@ namespace HomemadeFood.Api.Migrations
                     b.Property<int>("ProducerProfileId")
                         .HasColumnType("int");
 
+                    b.Property<string>("UnitType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasDefaultValue("Portion");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CategoryId");
@@ -261,6 +278,20 @@ namespace HomemadeFood.Api.Migrations
                     b.HasIndex("ProducerProfileId");
 
                     b.ToTable("Foods");
+                });
+
+            modelBuilder.Entity("HomemadeFood.Api.Entities.FoodAllergen", b =>
+                {
+                    b.Property<int>("FoodId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("AllergenCode")
+                        .HasMaxLength(40)
+                        .HasColumnType("varchar(40)");
+
+                    b.HasKey("FoodId", "AllergenCode");
+
+                    b.ToTable("FoodAllergens");
                 });
 
             modelBuilder.Entity("HomemadeFood.Api.Entities.Order", b =>
@@ -405,6 +436,202 @@ namespace HomemadeFood.Api.Migrations
                         .IsUnique();
 
                     b.ToTable("ProducerBusinessHours");
+                });
+
+            modelBuilder.Entity("HomemadeFood.Api.Entities.ProducerComplianceProfile", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    b.Property<string>("ComplianceStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(40)
+                        .HasColumnType("varchar(40)")
+                        .HasDefaultValue("InfrastructureOnly");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("FoodBusinessRegistrationNumber")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("FoodRegistrationStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(40)
+                        .HasColumnType("varchar(40)")
+                        .HasDefaultValue("NotDeclared");
+
+                    b.Property<DateTime?>("LastReviewedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("PaymentAccountReference")
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)");
+
+                    b.Property<string>("PaymentAccountStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(40)
+                        .HasColumnType("varchar(40)")
+                        .HasDefaultValue("NotConfigured");
+
+                    b.Property<int>("ProducerProfileId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ReviewNote")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
+
+                    b.Property<int?>("ReviewedByAdminId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TaxExemptionCertificateNumber")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("TaxNumber")
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)");
+
+                    b.Property<string>("TaxStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(40)
+                        .HasColumnType("varchar(40)")
+                        .HasDefaultValue("NotDeclared");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProducerProfileId")
+                        .IsUnique();
+
+                    b.ToTable("ProducerComplianceProfiles");
+                });
+
+            modelBuilder.Entity("HomemadeFood.Api.Entities.ProducerDocument", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("DocumentNumber")
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)");
+
+                    b.Property<string>("DocumentType")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("varchar(60)");
+
+                    b.Property<DateTime?>("ExpiresAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<DateTime?>("IssuedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("OriginalFileName")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<int>("ProducerProfileId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ReviewNote")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
+
+                    b.Property<DateTime?>("ReviewedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int?>("ReviewedByAdminId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("StorageReference")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("VerificationStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(40)
+                        .HasColumnType("varchar(40)")
+                        .HasDefaultValue("NotVerified");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("VerificationStatus");
+
+                    b.HasIndex("ProducerProfileId", "DocumentType", "IsActive");
+
+                    b.ToTable("ProducerDocuments");
+                });
+
+            modelBuilder.Entity("HomemadeFood.Api.Entities.ProducerInspection", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    b.Property<string>("AuthorityType")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("varchar(60)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("DocumentReference")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<DateTime>("InspectionDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("InspectionType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("varchar(2000)");
+
+                    b.Property<int>("ProducerProfileId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("RecordedByAdminId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Result")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(40)
+                        .HasColumnType("varchar(40)")
+                        .HasDefaultValue("Pending");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Result");
+
+                    b.HasIndex("ProducerProfileId", "InspectionDate");
+
+                    b.ToTable("ProducerInspections");
                 });
 
             modelBuilder.Entity("HomemadeFood.Api.Entities.ProducerProfile", b =>
@@ -917,6 +1144,17 @@ namespace HomemadeFood.Api.Migrations
                     b.Navigation("ProducerProfile");
                 });
 
+            modelBuilder.Entity("HomemadeFood.Api.Entities.FoodAllergen", b =>
+                {
+                    b.HasOne("HomemadeFood.Api.Entities.Food", "Food")
+                        .WithMany("Allergens")
+                        .HasForeignKey("FoodId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Food");
+                });
+
             modelBuilder.Entity("HomemadeFood.Api.Entities.Order", b =>
                 {
                     b.HasOne("HomemadeFood.Api.Entities.User", "Customer")
@@ -966,6 +1204,39 @@ namespace HomemadeFood.Api.Migrations
                 {
                     b.HasOne("HomemadeFood.Api.Entities.ProducerProfile", "ProducerProfile")
                         .WithMany("BusinessHours")
+                        .HasForeignKey("ProducerProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ProducerProfile");
+                });
+
+            modelBuilder.Entity("HomemadeFood.Api.Entities.ProducerComplianceProfile", b =>
+                {
+                    b.HasOne("HomemadeFood.Api.Entities.ProducerProfile", "ProducerProfile")
+                        .WithOne("ComplianceProfile")
+                        .HasForeignKey("HomemadeFood.Api.Entities.ProducerComplianceProfile", "ProducerProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ProducerProfile");
+                });
+
+            modelBuilder.Entity("HomemadeFood.Api.Entities.ProducerDocument", b =>
+                {
+                    b.HasOne("HomemadeFood.Api.Entities.ProducerProfile", "ProducerProfile")
+                        .WithMany("Documents")
+                        .HasForeignKey("ProducerProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ProducerProfile");
+                });
+
+            modelBuilder.Entity("HomemadeFood.Api.Entities.ProducerInspection", b =>
+                {
+                    b.HasOne("HomemadeFood.Api.Entities.ProducerProfile", "ProducerProfile")
+                        .WithMany("Inspections")
                         .HasForeignKey("ProducerProfileId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -1045,6 +1316,8 @@ namespace HomemadeFood.Api.Migrations
 
             modelBuilder.Entity("HomemadeFood.Api.Entities.Food", b =>
                 {
+                    b.Navigation("Allergens");
+
                     b.Navigation("CartItems");
 
                     b.Navigation("Favorites");
@@ -1065,7 +1338,13 @@ namespace HomemadeFood.Api.Migrations
 
                     b.Navigation("Carts");
 
+                    b.Navigation("ComplianceProfile");
+
+                    b.Navigation("Documents");
+
                     b.Navigation("Foods");
+
+                    b.Navigation("Inspections");
 
                     b.Navigation("Orders");
 

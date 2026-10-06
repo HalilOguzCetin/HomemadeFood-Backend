@@ -1,5 +1,6 @@
 ﻿using HomemadeFood.Api.Constants;
 using HomemadeFood.Api.DTOs.Admin;
+using HomemadeFood.Api.DTOs.Producer;
 using HomemadeFood.Api.Entities;
 using HomemadeFood.Api.Interfaces;
 
@@ -65,59 +66,11 @@ namespace HomemadeFood.Api.Services
             int producerProfileId,
             int adminUserId)
         {
-            var producerProfile =
-                await _producerRepository
-                    .GetByIdWithUserAsync(
-                        producerProfileId);
-
-            if (producerProfile == null)
-            {
-                return false;
-            }
-
-            if (!string.Equals(
-                    producerProfile
-                        .VerificationStatus,
-
-                    ProducerVerificationStatuses
-                        .Pending,
-
-                    StringComparison.Ordinal))
-            {
-                return false;
-            }
-
-            producerProfile.IsApproved =
-                true;
-
-            producerProfile.IsAvailable =
-                true;
-
-            producerProfile.VerificationStatus =
-                ProducerVerificationStatuses
-                    .Approved;
-
-            producerProfile.ApprovedAt =
-                _appClock.UtcNow;
-
-            producerProfile.ApprovedByAdminId =
-                adminUserId;
-
-            producerProfile.RejectedAt =
-                null;
-
-            producerProfile.RejectedByAdminId =
-                null;
-
-            producerProfile.RejectionReason =
-                null;
-
-
-
-            await _producerRepository
-                .SaveChangesAsync();
-
-            return true;
+            return await UpdateProducerVerificationStatusAsync(
+                producerProfileId,
+                adminUserId,
+                ProducerVerificationStatuses.Approved,
+                null);
         }
 
         public async Task<bool> RejectProducerAsync(
@@ -125,6 +78,67 @@ namespace HomemadeFood.Api.Services
             int adminUserId,
             string rejectionReason)
         {
+            var normalizedReason =
+                rejectionReason?.Trim() ??
+                string.Empty;
+
+            if (normalizedReason.Length < 10 ||
+                normalizedReason.Length > 500)
+            {
+                return false;
+            }
+
+            return await UpdateProducerVerificationStatusAsync(
+                producerProfileId,
+                adminUserId,
+                ProducerVerificationStatuses.Rejected,
+                normalizedReason);
+        }
+
+        public async Task<bool>
+            UpdateProducerVerificationStatusAsync(
+                int producerProfileId,
+                int adminUserId,
+                string targetStatus,
+                string? reviewNote)
+        {
+            if (producerProfileId <= 0 ||
+                adminUserId <= 0)
+            {
+                return false;
+            }
+
+            var normalizedTargetStatus =
+                NormalizeVerificationStatus(
+                    targetStatus);
+
+            if (normalizedTargetStatus == null)
+            {
+                return false;
+            }
+
+            var normalizedReviewNote =
+                string.IsNullOrWhiteSpace(reviewNote)
+                    ? null
+                    : reviewNote.Trim();
+
+            if (normalizedReviewNote?.Length > 1000)
+            {
+                return false;
+            }
+
+            if ((normalizedTargetStatus ==
+                    ProducerVerificationStatuses.Rejected ||
+                 normalizedTargetStatus ==
+                    ProducerVerificationStatuses.AdditionalDocumentRequired ||
+                 normalizedTargetStatus ==
+                    ProducerVerificationStatuses.Suspended) &&
+                (string.IsNullOrWhiteSpace(normalizedReviewNote) ||
+                 normalizedReviewNote.Length < 10))
+            {
+                return false;
+            }
+
             var producerProfile =
                 await _producerRepository
                     .GetByIdWithUserAsync(
@@ -135,53 +149,144 @@ namespace HomemadeFood.Api.Services
                 return false;
             }
 
-            if (!string.Equals(
-                    producerProfile
-                        .VerificationStatus,
+            var currentStatus =
+                producerProfile.VerificationStatus;
 
-                    ProducerVerificationStatuses
-                        .Pending,
-
-                    StringComparison.Ordinal))
+            if (!IsAllowedVerificationTransition(
+                    currentStatus,
+                    normalizedTargetStatus))
             {
                 return false;
             }
 
-            var normalizedReason =
-                rejectionReason.Trim();
-
-            if (normalizedReason.Length < 10 ||
-                normalizedReason.Length > 500)
-            {
-                return false;
-            }
-
-            producerProfile.IsApproved =
-                false;
-
-            producerProfile.IsAvailable =
-                false;
-
-            producerProfile.VerificationStatus =
-                ProducerVerificationStatuses
-                    .Rejected;
-
-            producerProfile.RejectedAt =
+            var nowUtc =
                 _appClock.UtcNow;
 
-            producerProfile.RejectedByAdminId =
+            var complianceProfile =
+                producerProfile.ComplianceProfile;
+
+            if (complianceProfile == null)
+            {
+                complianceProfile =
+                    new ProducerComplianceProfile
+                    {
+                        ProducerProfileId =
+                            producerProfile.Id,
+
+                        TaxStatus =
+                            ProducerTaxStatuses.NotDeclared,
+
+                        FoodRegistrationStatus =
+                            ProducerFoodRegistrationStatuses.NotDeclared,
+
+                        PaymentAccountStatus =
+                            ProducerPaymentAccountStatuses.NotConfigured,
+
+                        ComplianceStatus =
+                            ProducerComplianceStatuses.InfrastructureOnly,
+
+                        CreatedAt = nowUtc,
+                        UpdatedAt = nowUtc
+                    };
+
+                producerProfile.ComplianceProfile =
+                    complianceProfile;
+
+                await _producerRepository
+                    .AddComplianceProfileAsync(
+                        complianceProfile);
+            }
+
+            producerProfile.VerificationStatus =
+                normalizedTargetStatus;
+
+            complianceProfile.LastReviewedAt =
+                nowUtc;
+
+            complianceProfile.ReviewedByAdminId =
                 adminUserId;
 
-            producerProfile.RejectionReason =
-                normalizedReason;
+            complianceProfile.ReviewNote =
+                normalizedReviewNote;
 
-            producerProfile.ApprovedAt =
-                null;
+            complianceProfile.UpdatedAt =
+                nowUtc;
 
-            producerProfile.ApprovedByAdminId =
-                null;
+            switch (normalizedTargetStatus)
+            {
+                case ProducerVerificationStatuses.UnderReview:
+                    producerProfile.IsApproved = false;
+                    producerProfile.IsAvailable = false;
 
+                    complianceProfile.ComplianceStatus =
+                        ProducerComplianceStatuses.ManualReview;
+                    break;
 
+                case ProducerVerificationStatuses.AdditionalDocumentRequired:
+                    producerProfile.IsApproved = false;
+                    producerProfile.IsAvailable = false;
+
+                    complianceProfile.ComplianceStatus =
+                        ProducerComplianceStatuses.AdditionalActionRequired;
+                    break;
+
+                case ProducerVerificationStatuses.Approved:
+                    producerProfile.IsApproved = true;
+                    producerProfile.IsAvailable = true;
+
+                    producerProfile.ApprovedAt =
+                        nowUtc;
+
+                    producerProfile.ApprovedByAdminId =
+                        adminUserId;
+
+                    producerProfile.RejectedAt = null;
+                    producerProfile.RejectedByAdminId = null;
+                    producerProfile.RejectionReason = null;
+
+                    /*
+                     * Uygulama onayı resmi kurum doğrulaması anlamına gelmez.
+                     * Gerçek entegrasyon bağlanana kadar ManualReview korunur.
+                     */
+                    if (complianceProfile.ComplianceStatus !=
+                        ProducerComplianceStatuses.Compliant)
+                    {
+                        complianceProfile.ComplianceStatus =
+                            ProducerComplianceStatuses.ManualReview;
+                    }
+                    break;
+
+                case ProducerVerificationStatuses.Suspended:
+                    producerProfile.IsApproved = false;
+                    producerProfile.IsAvailable = false;
+
+                    complianceProfile.ComplianceStatus =
+                        ProducerComplianceStatuses.Suspended;
+                    break;
+
+                case ProducerVerificationStatuses.Rejected:
+                    producerProfile.IsApproved = false;
+                    producerProfile.IsAvailable = false;
+
+                    producerProfile.RejectedAt =
+                        nowUtc;
+
+                    producerProfile.RejectedByAdminId =
+                        adminUserId;
+
+                    producerProfile.RejectionReason =
+                        normalizedReviewNote;
+
+                    producerProfile.ApprovedAt = null;
+                    producerProfile.ApprovedByAdminId = null;
+
+                    complianceProfile.ComplianceStatus =
+                        ProducerComplianceStatuses.AdditionalActionRequired;
+                    break;
+
+                default:
+                    return false;
+            }
 
             await _producerRepository
                 .SaveChangesAsync();
@@ -617,7 +722,59 @@ namespace HomemadeFood.Api.Services
                     application.RejectedByAdminId,
 
                 RejectionReason =
-                    application.RejectionReason
+                    application.RejectionReason,
+
+                Compliance =
+                    application.ComplianceProfile == null
+                        ? null
+                        : MapComplianceResponse(
+                            application.ComplianceProfile)
+            };
+        }
+
+        private static ProducerComplianceResponse
+            MapComplianceResponse(
+                ProducerComplianceProfile complianceProfile)
+        {
+            return new ProducerComplianceResponse
+            {
+                ProducerProfileId =
+                    complianceProfile.ProducerProfileId,
+
+                TaxStatus =
+                    complianceProfile.TaxStatus,
+
+                TaxNumber =
+                    complianceProfile.TaxNumber,
+
+                TaxExemptionCertificateNumber =
+                    complianceProfile.TaxExemptionCertificateNumber,
+
+                FoodBusinessRegistrationNumber =
+                    complianceProfile.FoodBusinessRegistrationNumber,
+
+                FoodRegistrationStatus =
+                    complianceProfile.FoodRegistrationStatus,
+
+                PaymentAccountStatus =
+                    complianceProfile.PaymentAccountStatus,
+
+                ComplianceStatus =
+                    complianceProfile.ComplianceStatus,
+
+                IsOfficiallyVerified = false,
+
+                LastReviewedAt =
+                    complianceProfile.LastReviewedAt,
+
+                ReviewNote =
+                    complianceProfile.ReviewNote,
+
+                CreatedAt =
+                    complianceProfile.CreatedAt,
+
+                UpdatedAt =
+                    complianceProfile.UpdatedAt
             };
         }
 
@@ -733,46 +890,67 @@ namespace HomemadeFood.Api.Services
             NormalizeVerificationStatus(
                 string verificationStatus)
         {
+            if (string.IsNullOrWhiteSpace(verificationStatus))
+            {
+                return null;
+            }
+
             var normalizedValue =
                 verificationStatus.Trim();
 
-            if (normalizedValue.Equals(
-                    ProducerVerificationStatuses
-                        .Pending,
+            return ProducerVerificationStatuses.All
+                .FirstOrDefault(status =>
+                    status.Equals(
+                        normalizedValue,
+                        StringComparison.OrdinalIgnoreCase));
+        }
 
-                    StringComparison
-                        .OrdinalIgnoreCase))
+        private static bool
+            IsAllowedVerificationTransition(
+                string currentStatus,
+                string targetStatus)
+        {
+            if (string.Equals(
+                    currentStatus,
+                    targetStatus,
+                    StringComparison.Ordinal))
             {
-                return
-                    ProducerVerificationStatuses
-                        .Pending;
+                return false;
             }
 
-            if (normalizedValue.Equals(
-                    ProducerVerificationStatuses
-                        .Approved,
-
-                    StringComparison
-                        .OrdinalIgnoreCase))
+            return currentStatus switch
             {
-                return
-                    ProducerVerificationStatuses
-                        .Approved;
-            }
+                ProducerVerificationStatuses.Pending =>
+                    targetStatus is
+                        ProducerVerificationStatuses.UnderReview or
+                        ProducerVerificationStatuses.AdditionalDocumentRequired or
+                        ProducerVerificationStatuses.Approved or
+                        ProducerVerificationStatuses.Rejected,
 
-            if (normalizedValue.Equals(
-                    ProducerVerificationStatuses
-                        .Rejected,
+                ProducerVerificationStatuses.UnderReview =>
+                    targetStatus is
+                        ProducerVerificationStatuses.AdditionalDocumentRequired or
+                        ProducerVerificationStatuses.Approved or
+                        ProducerVerificationStatuses.Rejected,
 
-                    StringComparison
-                        .OrdinalIgnoreCase))
-            {
-                return
-                    ProducerVerificationStatuses
-                        .Rejected;
-            }
+                ProducerVerificationStatuses.AdditionalDocumentRequired =>
+                    targetStatus is
+                        ProducerVerificationStatuses.UnderReview or
+                        ProducerVerificationStatuses.Approved or
+                        ProducerVerificationStatuses.Rejected,
 
-            return null;
+                ProducerVerificationStatuses.Approved =>
+                    targetStatus ==
+                        ProducerVerificationStatuses.Suspended,
+
+                ProducerVerificationStatuses.Suspended =>
+                    targetStatus is
+                        ProducerVerificationStatuses.UnderReview or
+                        ProducerVerificationStatuses.Approved or
+                        ProducerVerificationStatuses.Rejected,
+
+                _ => false
+            };
         }
 
         private static string?

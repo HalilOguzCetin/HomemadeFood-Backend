@@ -39,6 +39,12 @@ namespace HomemadeFood.Api.Entities
 
         public decimal Rating { get; set; } = 0;
 
+        /*
+         * LEGACY: İşletme seviyesindeki kapasite alanları mevcut akışları
+         * bozmamak için geçici olarak korunur. Yeni kapasite modeli Food
+         * seviyesine taşınacaktır ve bu alanlar karar mekanizmasından
+         * çıkarılacaktır.
+         */
         public int DailyCapacity { get; set; }
         public int RemainingCapacity { get; set; }
         public DateOnly? CapacityDate { get; set; }
@@ -77,6 +83,14 @@ namespace HomemadeFood.Api.Entities
 
         public DateTime CreatedAt { get; set; } =
             DateTime.UtcNow;
+
+        public ProducerComplianceProfile? ComplianceProfile { get; set; }
+
+        public ICollection<ProducerDocument> Documents { get; set; } =
+            new List<ProducerDocument>();
+
+        public ICollection<ProducerInspection> Inspections { get; set; } =
+            new List<ProducerInspection>();
 
         public ICollection<ProducerBusinessHour> BusinessHours { get; set; } =
             new List<ProducerBusinessHour>();

@@ -1,4 +1,5 @@
-﻿using HomemadeFood.Api.DTOs.Food;
+﻿using HomemadeFood.Api.Constants;
+using HomemadeFood.Api.DTOs.Food;
 using HomemadeFood.Api.Entities;
 using HomemadeFood.Api.Interfaces;
 using HomemadeFood.Api.DTOs.Common;
@@ -58,6 +59,14 @@ namespace HomemadeFood.Api.Services
                     "Yemek fotoğrafı zorunludur.");
             }
 
+            var normalizedUnitType =
+                NormalizeUnitType(
+                    request.UnitType);
+
+            var normalizedAllergenCodes =
+                NormalizeAllergenCodes(
+                    request.AllergenCodes);
+
             string? imageUrl = null;
 
             try
@@ -78,8 +87,23 @@ namespace HomemadeFood.Api.Services
                     Description = request.Description.Trim(),
                     Ingredients = request.Ingredients.Trim(),
                     Price = request.Price,
+
+                    UnitType = normalizedUnitType,
+                    DailyCapacity = request.DailyCapacity,
+
                     PreparationTimeMinutes =
                         request.PreparationTimeMinutes,
+
+                    MinimumOrderLeadTimeMinutes =
+                        request.MinimumOrderLeadTimeMinutes,
+
+                    Allergens = normalizedAllergenCodes
+                        .Select(allergenCode =>
+                            new FoodAllergen
+                            {
+                                AllergenCode = allergenCode
+                            })
+                        .ToList(),
 
                     ImageUrl = imageUrl,
 
@@ -969,6 +993,14 @@ namespace HomemadeFood.Api.Services
                 return null;
             }
 
+            var normalizedUnitType =
+                NormalizeUnitType(
+                    request.UnitType);
+
+            var normalizedAllergenCodes =
+                NormalizeAllergenCodes(
+                    request.AllergenCodes);
+
             var previousImageUrl =
                 food.ImageUrl;
 
@@ -993,8 +1025,27 @@ namespace HomemadeFood.Api.Services
             food.Ingredients = request.Ingredients.Trim();
             food.Price = request.Price;
 
+            food.UnitType = normalizedUnitType;
+            food.DailyCapacity = request.DailyCapacity;
+
             food.PreparationTimeMinutes =
                 request.PreparationTimeMinutes;
+
+            food.MinimumOrderLeadTimeMinutes =
+                request.MinimumOrderLeadTimeMinutes;
+
+            food.Allergens.Clear();
+
+            foreach (var allergenCode in
+                normalizedAllergenCodes)
+            {
+                food.Allergens.Add(
+                    new FoodAllergen
+                    {
+                        FoodId = food.Id,
+                        AllergenCode = allergenCode
+                    });
+            }
 
             /*
              * Yeni fotoğraf seçilmediyse mevcut görsel korunur.
@@ -1049,6 +1100,47 @@ namespace HomemadeFood.Api.Services
                 isCurrentlyOpen);
         }
 
+        public async Task<FoodResponse?>
+            UpdateFoodAvailabilityAsync(
+                int userId,
+                int foodId,
+                bool isAvailable)
+        {
+            var producerProfile =
+                await _producerRepository
+                    .GetApprovedByUserIdAsync(userId);
+
+            if (producerProfile == null)
+            {
+                return null;
+            }
+
+            var food =
+                await _foodRepository
+                    .GetByIdAndProducerProfileIdAsync(
+                        foodId,
+                        producerProfile.Id);
+
+            if (food == null)
+            {
+                return null;
+            }
+
+            food.IsAvailable = isAvailable;
+
+            await _foodRepository
+                .SaveChangesAsync();
+
+            var isCurrentlyOpen =
+                await _producerAvailabilityService
+                    .IsProducerCurrentlyOpenAsync(
+                        food.ProducerProfileId);
+
+            return MapToResponse(
+                food,
+                isCurrentlyOpen);
+        }
+
         public async Task<bool> DeleteFoodAsync(
             int userId,
             int foodId)
@@ -1078,6 +1170,81 @@ namespace HomemadeFood.Api.Services
             await _foodRepository.SaveChangesAsync();
 
             return true;
+        }
+
+        private static string NormalizeUnitType(
+            string? unitType)
+        {
+            if (string.IsNullOrWhiteSpace(unitType))
+            {
+                throw new ArgumentException(
+                    "Satış birimi zorunludur.");
+            }
+
+            var normalized =
+                FoodUnitTypes.All
+                    .FirstOrDefault(candidate =>
+                        candidate.Equals(
+                            unitType.Trim(),
+                            StringComparison.OrdinalIgnoreCase));
+
+            if (normalized == null)
+            {
+                throw new ArgumentException(
+                    "Geçersiz satış birimi. Desteklenen değerler: Portion, Tray, Piece, Kilogram, Liter, Package, Other.");
+            }
+
+            return normalized;
+        }
+
+        private static List<string>
+            NormalizeAllergenCodes(
+                IEnumerable<string>? allergenCodes)
+        {
+            if (allergenCodes == null)
+            {
+                return new List<string>();
+            }
+
+            var result =
+                new List<string>();
+
+            foreach (var rawCode in allergenCodes)
+            {
+                if (string.IsNullOrWhiteSpace(rawCode))
+                {
+                    continue;
+                }
+
+                var normalized =
+                    FoodAllergenCodes.All
+                        .FirstOrDefault(candidate =>
+                            candidate.Equals(
+                                rawCode.Trim(),
+                                StringComparison.OrdinalIgnoreCase));
+
+                if (normalized == null)
+                {
+                    throw new ArgumentException(
+                        $"Geçersiz alerjen kodu: {rawCode.Trim()}.");
+                }
+
+                if (!result.Contains(
+                    normalized,
+                    StringComparer.OrdinalIgnoreCase))
+                {
+                    result.Add(normalized);
+                }
+            }
+
+            if (result.Count >
+                FoodAllergenCodes.All.Count)
+            {
+                throw new ArgumentException(
+                    "Alerjen listesi geçersizdir.");
+            }
+
+            return result;
         }
 
         private async Task SafeDeleteFoodImageAsync(
@@ -1123,8 +1290,21 @@ namespace HomemadeFood.Api.Services
                 Ingredients = food.Ingredients,
                 Price = food.Price,
 
+                UnitType = food.UnitType,
+                DailyCapacity = food.DailyCapacity,
+
                 PreparationTimeMinutes =
                     food.PreparationTimeMinutes,
+
+                MinimumOrderLeadTimeMinutes =
+                    food.MinimumOrderLeadTimeMinutes,
+
+                AllergenCodes = food.Allergens
+                    .Select(allergen =>
+                        allergen.AllergenCode)
+                    .OrderBy(allergenCode =>
+                        allergenCode)
+                    .ToList(),
 
                 ImageUrl = food.ImageUrl,
                 IsAvailable = food.IsAvailable,

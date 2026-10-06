@@ -21,6 +21,13 @@ namespace HomemadeFood.Api.Repositories
             await _context.ProducerProfiles.AddAsync(producerProfile);
         }
 
+        public async Task AddComplianceProfileAsync(
+            ProducerComplianceProfile complianceProfile)
+        {
+            await _context.ProducerComplianceProfiles
+                .AddAsync(complianceProfile);
+        }
+
         public async Task<bool> HasApplicationAsync(int userId)
         {
             return await _context.ProducerProfiles
@@ -31,6 +38,7 @@ namespace HomemadeFood.Api.Repositories
         int userId)
         {
             return await _context.ProducerProfiles
+                .Include(x => x.ComplianceProfile)
                 .FirstOrDefaultAsync(
                     x => x.UserId == userId);
         }
@@ -52,6 +60,8 @@ namespace HomemadeFood.Api.Repositories
                 .AsNoTracking()
                 .Include(producerProfile =>
                     producerProfile.User)
+                .Include(producerProfile =>
+                    producerProfile.ComplianceProfile)
                 .Where(producerProfile =>
                     producerProfile.VerificationStatus ==
                     verificationStatus)
@@ -64,6 +74,7 @@ namespace HomemadeFood.Api.Repositories
         {
             return await _context.ProducerProfiles
                 .Include(x => x.User)
+                .Include(x => x.ComplianceProfile)
                 .FirstOrDefaultAsync(x => x.Id == producerProfileId);
         }
         public async Task<ProducerProfile?>

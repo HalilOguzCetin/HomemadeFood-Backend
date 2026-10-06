@@ -626,6 +626,87 @@ namespace HomemadeFood.Api.Controllers
                         "Üretici başvurusu başarıyla getirildi."));
         }
 
+        [Authorize]
+        [HttpGet("my-compliance")]
+        public async Task<IActionResult>
+            GetMyCompliance()
+        {
+            if (!TryGetUserId(out var userId))
+            {
+                return Unauthorized(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.Unauthorized,
+                        "Kullanıcı bilgisi alınamadı."));
+            }
+
+            var compliance =
+                await _producerService
+                    .GetMyComplianceAsync(
+                        userId);
+
+            if (compliance == null)
+            {
+                return NotFound(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.NotFound,
+                        "Bu kullanıcıya ait bir üretici profili bulunamadı."));
+            }
+
+            return Ok(
+                ApiResponse<ProducerComplianceResponse>
+                    .Succeed(
+                        compliance,
+                        "Üretici uyumluluk bilgileri başarıyla getirildi."));
+        }
+
+        [Authorize]
+        [HttpPut("my-compliance")]
+        public async Task<IActionResult>
+            UpdateMyCompliance(
+                [FromBody]
+                UpdateProducerComplianceRequest request)
+        {
+            if (!TryGetUserId(out var userId))
+            {
+                return Unauthorized(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.Unauthorized,
+                        "Kullanıcı bilgisi alınamadı."));
+            }
+
+            ProducerComplianceResponse? compliance;
+
+            try
+            {
+                compliance =
+                    await _producerService
+                        .UpdateMyComplianceAsync(
+                            userId,
+                            request);
+            }
+            catch (ArgumentException exception)
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.BadRequest,
+                        exception.Message));
+            }
+
+            if (compliance == null)
+            {
+                return NotFound(
+                    ApiResponse<object>.Fail(
+                        ApiResponseCodes.NotFound,
+                        "Bu kullanıcıya ait bir üretici profili bulunamadı."));
+            }
+
+            return Ok(
+                ApiResponse<ProducerComplianceResponse>
+                    .Succeed(
+                        compliance,
+                        "Üretici uyumluluk beyanı kaydedildi. Resmi doğrulama bağlı olmadığı için kayıt manuel inceleme durumundadır."));
+        }
+
         private bool TryGetUserId(
             out int userId)
         {

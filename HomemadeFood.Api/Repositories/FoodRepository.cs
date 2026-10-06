@@ -33,6 +33,7 @@ namespace HomemadeFood.Api.Repositories
                 _context.Foods
                     .AsNoTracking()
                     .Include(x => x.Category)
+                    .Include(x => x.Allergens)
                     .Include(x =>
                         x.ProducerProfile)
                     .Where(x =>
@@ -515,6 +516,7 @@ namespace HomemadeFood.Api.Repositories
             return await _context.Foods
                 .AsNoTracking()
                 .Include(x => x.Category)
+                .Include(x => x.Allergens)
                 .Include(x =>
                     x.ProducerProfile)
                 .FirstOrDefaultAsync(x =>
@@ -538,6 +540,7 @@ namespace HomemadeFood.Api.Repositories
             return await _context.Foods
                 .AsNoTracking()
                 .Include(x => x.Category)
+                .Include(x => x.Allergens)
                 .Include(x =>
                     x.ProducerProfile)
                 .Where(x =>
@@ -555,6 +558,7 @@ namespace HomemadeFood.Api.Repositories
         {
             return await _context.Foods
                 .Include(x => x.Category)
+                .Include(x => x.Allergens)
                 .Include(x =>
                     x.ProducerProfile)
                 .FirstOrDefaultAsync(x =>

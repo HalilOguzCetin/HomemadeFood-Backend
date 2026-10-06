@@ -26,9 +26,25 @@ namespace HomemadeFood.Api.Data
             ProducerBusinessHours
         { get; set; }
 
+        public DbSet<ProducerComplianceProfile>
+            ProducerComplianceProfiles
+        { get; set; }
+
+        public DbSet<ProducerDocument>
+            ProducerDocuments
+        { get; set; }
+
+        public DbSet<ProducerInspection>
+            ProducerInspections
+        { get; set; }
+
         public DbSet<Category> Categories { get; set; }
 
         public DbSet<Food> Foods { get; set; }
+
+        public DbSet<FoodAllergen>
+            FoodAllergens
+        { get; set; }
 
         public DbSet<Address> Addresses { get; set; }
 
@@ -217,6 +233,146 @@ namespace HomemadeFood.Api.Data
             });
 
             // -------------------------------------------------
+            // PRODUCER COMPLIANCE PROFILE
+            // -------------------------------------------------
+
+            modelBuilder.Entity<ProducerComplianceProfile>(entity =>
+            {
+                entity.HasOne(x => x.ProducerProfile)
+                    .WithOne(x => x.ComplianceProfile)
+                    .HasForeignKey<ProducerComplianceProfile>(
+                        x => x.ProducerProfileId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(x => x.ProducerProfileId)
+                    .IsUnique();
+
+                entity.Property(x => x.TaxStatus)
+                    .HasMaxLength(40)
+                    .IsRequired()
+                    .HasDefaultValue(
+                        ProducerTaxStatuses.NotDeclared);
+
+                entity.Property(x => x.TaxNumber)
+                    .HasMaxLength(32);
+
+                entity.Property(x =>
+                        x.TaxExemptionCertificateNumber)
+                    .HasMaxLength(100);
+
+                entity.Property(x =>
+                        x.FoodBusinessRegistrationNumber)
+                    .HasMaxLength(100);
+
+                entity.Property(x => x.FoodRegistrationStatus)
+                    .HasMaxLength(40)
+                    .IsRequired()
+                    .HasDefaultValue(
+                        ProducerFoodRegistrationStatuses.NotDeclared);
+
+                entity.Property(x => x.PaymentAccountStatus)
+                    .HasMaxLength(40)
+                    .IsRequired()
+                    .HasDefaultValue(
+                        ProducerPaymentAccountStatuses.NotConfigured);
+
+                entity.Property(x => x.PaymentAccountReference)
+                    .HasMaxLength(150);
+
+                entity.Property(x => x.ComplianceStatus)
+                    .HasMaxLength(40)
+                    .IsRequired()
+                    .HasDefaultValue(
+                        ProducerComplianceStatuses.InfrastructureOnly);
+
+                entity.Property(x => x.ReviewNote)
+                    .HasMaxLength(1000);
+            });
+
+            // -------------------------------------------------
+            // PRODUCER DOCUMENT
+            // -------------------------------------------------
+
+            modelBuilder.Entity<ProducerDocument>(entity =>
+            {
+                entity.HasOne(x => x.ProducerProfile)
+                    .WithMany(x => x.Documents)
+                    .HasForeignKey(x => x.ProducerProfileId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.Property(x => x.DocumentType)
+                    .HasMaxLength(60)
+                    .IsRequired();
+
+                entity.Property(x => x.DocumentNumber)
+                    .HasMaxLength(150);
+
+                entity.Property(x => x.StorageReference)
+                    .HasMaxLength(500);
+
+                entity.Property(x => x.OriginalFileName)
+                    .HasMaxLength(255);
+
+                entity.Property(x => x.VerificationStatus)
+                    .HasMaxLength(40)
+                    .IsRequired()
+                    .HasDefaultValue(
+                        ProducerDocumentVerificationStatuses.NotVerified);
+
+                entity.Property(x => x.ReviewNote)
+                    .HasMaxLength(1000);
+
+                entity.HasIndex(x => new
+                {
+                    x.ProducerProfileId,
+                    x.DocumentType,
+                    x.IsActive
+                });
+
+                entity.HasIndex(x => x.VerificationStatus);
+            });
+
+            // -------------------------------------------------
+            // PRODUCER INSPECTION
+            // -------------------------------------------------
+
+            modelBuilder.Entity<ProducerInspection>(entity =>
+            {
+                entity.HasOne(x => x.ProducerProfile)
+                    .WithMany(x => x.Inspections)
+                    .HasForeignKey(x => x.ProducerProfileId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.Property(x => x.AuthorityType)
+                    .HasMaxLength(60)
+                    .IsRequired();
+
+                entity.Property(x => x.InspectionType)
+                    .HasMaxLength(100)
+                    .IsRequired();
+
+                entity.Property(x => x.Result)
+                    .HasMaxLength(40)
+                    .IsRequired()
+                    .HasDefaultValue(
+                        ProducerInspectionResults.Pending);
+
+                entity.Property(x => x.Notes)
+                    .HasMaxLength(2000);
+
+                entity.Property(x => x.DocumentReference)
+                    .HasMaxLength(500);
+
+                entity.HasIndex(x => new
+                {
+                    x.ProducerProfileId,
+                    x.InspectionDate
+                });
+
+                entity.HasIndex(x => x.Result);
+            });
+
+            // -------------------------------------------------
             // PRODUCER BUSINESS HOURS
             // -------------------------------------------------
 
@@ -287,6 +443,43 @@ namespace HomemadeFood.Api.Data
 
                 entity.Property(x => x.Price)
                     .HasPrecision(18, 2);
+
+                entity.Property(x => x.UnitType)
+                    .HasMaxLength(20)
+                    .IsRequired()
+                    .HasDefaultValue(
+                        FoodUnitTypes.Portion);
+
+                entity.Property(x => x.DailyCapacity)
+                    .IsRequired()
+                    .HasDefaultValue(1);
+
+                entity.Property(x =>
+                        x.MinimumOrderLeadTimeMinutes)
+                    .IsRequired()
+                    .HasDefaultValue(0);
+            });
+
+            // -------------------------------------------------
+            // FOOD ALLERGEN
+            // -------------------------------------------------
+
+            modelBuilder.Entity<FoodAllergen>(entity =>
+            {
+                entity.HasKey(x => new
+                {
+                    x.FoodId,
+                    x.AllergenCode
+                });
+
+                entity.Property(x => x.AllergenCode)
+                    .HasMaxLength(40)
+                    .IsRequired();
+
+                entity.HasOne(x => x.Food)
+                    .WithMany(x => x.Allergens)
+                    .HasForeignKey(x => x.FoodId)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
 
             // -------------------------------------------------

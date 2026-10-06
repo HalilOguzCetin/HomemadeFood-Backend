@@ -54,5 +54,7 @@
         public DateTime? RejectedAt { get; set; }
 
         public string? RejectionReason { get; set; }
+
+        public ProducerComplianceResponse? Compliance { get; set; }
     }
 }

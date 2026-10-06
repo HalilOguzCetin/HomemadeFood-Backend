@@ -13,6 +13,15 @@ namespace HomemadeFood.Api.Interfaces
             GetMyApplicationAsync(
                 int userId);
 
+        Task<ProducerComplianceResponse?>
+            GetMyComplianceAsync(
+                int userId);
+
+        Task<ProducerComplianceResponse?>
+            UpdateMyComplianceAsync(
+                int userId,
+                UpdateProducerComplianceRequest request);
+
         Task<ProducerApplicationStatusResponse?>
             UpdateMyProfileAsync(
                 int userId,

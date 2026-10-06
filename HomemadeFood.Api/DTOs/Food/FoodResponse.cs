@@ -20,7 +20,15 @@
 
         public decimal Price { get; set; }
 
+        public string UnitType { get; set; } = string.Empty;
+
+        public int DailyCapacity { get; set; }
+
         public int PreparationTimeMinutes { get; set; }
+
+        public int MinimumOrderLeadTimeMinutes { get; set; }
+
+        public List<string> AllergenCodes { get; set; } = new();
 
         public string ImageUrl { get; set; } = string.Empty;
 

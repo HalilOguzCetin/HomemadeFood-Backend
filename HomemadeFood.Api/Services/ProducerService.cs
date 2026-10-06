@@ -158,17 +158,22 @@ namespace HomemadeFood.Api.Services
                 await _producerRepository
                     .GetByUserIdAsync(userId);
 
-            if (
-                existingApplication != null &&
-                !string.Equals(
-                    existingApplication
-                        .VerificationStatus,
-                    ProducerVerificationStatuses
-                        .Rejected,
-                    StringComparison.Ordinal)
-            )
+            if (existingApplication != null)
             {
-                return false;
+                var canResubmit =
+                    string.Equals(
+                        existingApplication.VerificationStatus,
+                        ProducerVerificationStatuses.Rejected,
+                        StringComparison.Ordinal) ||
+                    string.Equals(
+                        existingApplication.VerificationStatus,
+                        ProducerVerificationStatuses.AdditionalDocumentRequired,
+                        StringComparison.Ordinal);
+
+                if (!canResubmit)
+                {
+                    return false;
+                }
             }
 
             /*
@@ -244,6 +249,10 @@ namespace HomemadeFood.Api.Services
                             VerificationStatus =
                                 ProducerVerificationStatuses
                                     .Pending,
+
+                            ComplianceProfile =
+                                CreateDefaultComplianceProfile(
+                                    _appClock.UtcNow),
 
                             CreatedAt =
                                 _appClock.UtcNow
@@ -340,6 +349,40 @@ namespace HomemadeFood.Api.Services
 
             existingApplication.CapacityVersion++;
 
+            if (existingApplication.ComplianceProfile == null)
+            {
+                var complianceProfile =
+                    CreateDefaultComplianceProfile(
+                        _appClock.UtcNow);
+
+                complianceProfile.ProducerProfileId =
+                    existingApplication.Id;
+
+                existingApplication.ComplianceProfile =
+                    complianceProfile;
+
+                await _producerRepository
+                    .AddComplianceProfileAsync(
+                        complianceProfile);
+            }
+            else
+            {
+                existingApplication.ComplianceProfile.ComplianceStatus =
+                    ProducerComplianceStatuses.ManualReview;
+
+                existingApplication.ComplianceProfile.LastReviewedAt =
+                    null;
+
+                existingApplication.ComplianceProfile.ReviewedByAdminId =
+                    null;
+
+                existingApplication.ComplianceProfile.ReviewNote =
+                    null;
+
+                existingApplication.ComplianceProfile.UpdatedAt =
+                    _appClock.UtcNow;
+            }
+
             try
             {
                 await _producerRepository
@@ -391,6 +434,171 @@ namespace HomemadeFood.Api.Services
 
             return MapToResponse(
                 producerProfile);
+        }
+
+        public async Task<ProducerComplianceResponse?>
+            GetMyComplianceAsync(
+                int userId)
+        {
+            var producerProfile =
+                await _producerRepository
+                    .GetByUserIdAsync(userId);
+
+            if (producerProfile == null)
+            {
+                return null;
+            }
+
+            if (producerProfile.ComplianceProfile == null)
+            {
+                var complianceProfile =
+                    CreateDefaultComplianceProfile(
+                        _appClock.UtcNow);
+
+                complianceProfile.ProducerProfileId =
+                    producerProfile.Id;
+
+                producerProfile.ComplianceProfile =
+                    complianceProfile;
+
+                await _producerRepository
+                    .AddComplianceProfileAsync(
+                        complianceProfile);
+
+                await _producerRepository
+                    .SaveChangesAsync();
+            }
+
+            return MapComplianceResponse(
+                producerProfile.ComplianceProfile!);
+        }
+
+        public async Task<ProducerComplianceResponse?>
+            UpdateMyComplianceAsync(
+                int userId,
+                UpdateProducerComplianceRequest request)
+        {
+            var producerProfile =
+                await _producerRepository
+                    .GetByUserIdAsync(userId);
+
+            if (producerProfile == null)
+            {
+                return null;
+            }
+
+            if (!TryNormalizeTaxStatus(
+                    request.TaxStatus,
+                    out var normalizedTaxStatus))
+            {
+                throw new ArgumentException(
+                    "Vergi statüsü geçersizdir.");
+            }
+
+            if (!TryNormalizeFoodRegistrationStatus(
+                    request.FoodRegistrationStatus,
+                    out var normalizedFoodRegistrationStatus))
+            {
+                throw new ArgumentException(
+                    "Gıda işletmesi kayıt durumu geçersizdir.");
+            }
+
+            var taxNumber =
+                NormalizeOptional(request.TaxNumber);
+
+            var taxExemptionCertificateNumber =
+                NormalizeOptional(
+                    request.TaxExemptionCertificateNumber);
+
+            var foodBusinessRegistrationNumber =
+                NormalizeOptional(
+                    request.FoodBusinessRegistrationNumber);
+
+            if (!IsOptionalTextValid(taxNumber, 32) ||
+                !IsOptionalTextValid(
+                    taxExemptionCertificateNumber,
+                    100) ||
+                !IsOptionalTextValid(
+                    foodBusinessRegistrationNumber,
+                    100))
+            {
+                throw new ArgumentException(
+                    "Uyumluluk bilgilerinden biri izin verilen uzunluğu aşıyor.");
+            }
+
+            var complianceProfile =
+                producerProfile.ComplianceProfile;
+
+            if (complianceProfile == null)
+            {
+                complianceProfile =
+                    CreateDefaultComplianceProfile(
+                        _appClock.UtcNow);
+
+                complianceProfile.ProducerProfileId =
+                    producerProfile.Id;
+
+                producerProfile.ComplianceProfile =
+                    complianceProfile;
+
+                await _producerRepository
+                    .AddComplianceProfileAsync(
+                        complianceProfile);
+            }
+
+            complianceProfile.TaxStatus =
+                normalizedTaxStatus;
+
+            complianceProfile.TaxNumber =
+                taxNumber;
+
+            complianceProfile.TaxExemptionCertificateNumber =
+                taxExemptionCertificateNumber;
+
+            complianceProfile.FoodBusinessRegistrationNumber =
+                foodBusinessRegistrationNumber;
+
+            complianceProfile.FoodRegistrationStatus =
+                normalizedFoodRegistrationStatus;
+
+            complianceProfile.ComplianceStatus =
+                ProducerComplianceStatuses.ManualReview;
+
+            complianceProfile.LastReviewedAt =
+                null;
+
+            complianceProfile.ReviewedByAdminId =
+                null;
+
+            complianceProfile.ReviewNote =
+                null;
+
+            complianceProfile.UpdatedAt =
+                _appClock.UtcNow;
+
+            if (string.Equals(
+                    producerProfile.VerificationStatus,
+                    ProducerVerificationStatuses.AdditionalDocumentRequired,
+                    StringComparison.Ordinal))
+            {
+                producerProfile.VerificationStatus =
+                    ProducerVerificationStatuses.Pending;
+
+                producerProfile.RejectionReason =
+                    null;
+
+                producerProfile.RejectedAt =
+                    null;
+
+                producerProfile.RejectedByAdminId =
+                    null;
+            }
+
+            await _producerRepository
+                .SaveChangesAsync();
+
+            return MapComplianceResponse(
+                complianceProfile);
         }
 
         public async Task<
@@ -2022,8 +2230,139 @@ namespace HomemadeFood.Api.Services
                     producerProfile.RejectedAt,
 
                 RejectionReason =
-                    producerProfile.RejectionReason
+                    producerProfile.RejectionReason,
+
+                Compliance =
+                    producerProfile.ComplianceProfile == null
+                        ? null
+                        : MapComplianceResponse(
+                            producerProfile.ComplianceProfile)
             };
+        }
+
+        private static ProducerComplianceProfile
+            CreateDefaultComplianceProfile(
+                DateTime nowUtc)
+        {
+            return new ProducerComplianceProfile
+            {
+                TaxStatus =
+                    ProducerTaxStatuses.NotDeclared,
+
+                FoodRegistrationStatus =
+                    ProducerFoodRegistrationStatuses.NotDeclared,
+
+                PaymentAccountStatus =
+                    ProducerPaymentAccountStatuses.NotConfigured,
+
+                ComplianceStatus =
+                    ProducerComplianceStatuses.InfrastructureOnly,
+
+                CreatedAt = nowUtc,
+                UpdatedAt = nowUtc
+            };
+        }
+
+        private static ProducerComplianceResponse
+            MapComplianceResponse(
+                ProducerComplianceProfile complianceProfile)
+        {
+            return new ProducerComplianceResponse
+            {
+                ProducerProfileId =
+                    complianceProfile.ProducerProfileId,
+
+                TaxStatus =
+                    complianceProfile.TaxStatus,
+
+                TaxNumber =
+                    complianceProfile.TaxNumber,
+
+                TaxExemptionCertificateNumber =
+                    complianceProfile.TaxExemptionCertificateNumber,
+
+                FoodBusinessRegistrationNumber =
+                    complianceProfile.FoodBusinessRegistrationNumber,
+
+                FoodRegistrationStatus =
+                    complianceProfile.FoodRegistrationStatus,
+
+                PaymentAccountStatus =
+                    complianceProfile.PaymentAccountStatus,
+
+                ComplianceStatus =
+                    complianceProfile.ComplianceStatus,
+
+                IsOfficiallyVerified = false,
+
+                LastReviewedAt =
+                    complianceProfile.LastReviewedAt,
+
+                ReviewNote =
+                    complianceProfile.ReviewNote,
+
+                CreatedAt =
+                    complianceProfile.CreatedAt,
+
+                UpdatedAt =
+                    complianceProfile.UpdatedAt
+            };
+        }
+
+        private static bool TryNormalizeTaxStatus(
+            string? value,
+            out string normalizedValue)
+        {
+            normalizedValue = string.Empty;
+
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return false;
+            }
+
+            var candidate = value.Trim();
+
+            var match = ProducerTaxStatuses.All
+                .FirstOrDefault(status =>
+                    status.Equals(
+                        candidate,
+                        StringComparison.OrdinalIgnoreCase));
+
+            if (match == null)
+            {
+                return false;
+            }
+
+            normalizedValue = match;
+            return true;
+        }
+
+        private static bool TryNormalizeFoodRegistrationStatus(
+            string? value,
+            out string normalizedValue)
+        {
+            normalizedValue = string.Empty;
+
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return false;
+            }
+
+            var candidate = value.Trim();
+
+            var match = ProducerFoodRegistrationStatuses.All
+                .FirstOrDefault(status =>
+                    status.Equals(
+                        candidate,
+                        StringComparison.OrdinalIgnoreCase));
+
+            if (match == null)
+            {
+                return false;
+            }
+
+            normalizedValue = match;
+            return true;
         }
 
         private static bool IsRequiredTextValid(

@@ -1,4 +1,6 @@
-﻿namespace HomemadeFood.Api.DTOs.Admin
+﻿using HomemadeFood.Api.DTOs.Producer;
+
+namespace HomemadeFood.Api.DTOs.Admin
 {
     public class AdminProducerApplicationResponse
     {
@@ -52,5 +54,7 @@
         public int? RejectedByAdminId { get; set; }
 
         public string? RejectionReason { get; set; }
+
+        public ProducerComplianceResponse? Compliance { get; set; }
     }
 }

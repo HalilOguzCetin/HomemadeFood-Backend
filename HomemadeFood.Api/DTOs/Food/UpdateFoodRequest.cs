@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using HomemadeFood.Api.Constants;
 using Microsoft.AspNetCore.Http;
 
 namespace HomemadeFood.Api.DTOs.Food
@@ -41,17 +42,37 @@ namespace HomemadeFood.Api.DTOs.Food
             ConvertValueInInvariantCulture = true)]
         public decimal Price { get; set; }
 
+        [Required(
+            ErrorMessage = "Satış birimi zorunludur.")]
+        [MaxLength(
+            20,
+            ErrorMessage = "Satış birimi en fazla 20 karakter olabilir.")]
+        public string UnitType { get; set; } =
+            FoodUnitTypes.Portion;
+
+        [Range(
+            1,
+            10000,
+            ErrorMessage = "Günlük kapasite 1 ile 10000 arasında olmalıdır.")]
+        public int DailyCapacity { get; set; } = 1;
+
         [Range(
             1,
             1440,
             ErrorMessage = "Hazırlama süresi 1 ile 1440 dakika arasında olmalıdır.")]
         public int PreparationTimeMinutes { get; set; }
 
+        [Range(
+            0,
+            10080,
+            ErrorMessage = "Minimum sipariş ön süresi 0 ile 10080 dakika arasında olmalıdır.")]
+        public int MinimumOrderLeadTimeMinutes { get; set; }
+
+        public List<string> AllergenCodes { get; set; } = new();
+
         /*
          * Edit sırasında yeni fotoğraf seçmek zorunlu değildir.
          * Image null ise mevcut Food.ImageUrl korunur.
-         * Yeni dosya gelirse storage + DB işlemi güvenli replacement
-         * yaşam döngüsüyle yürütülür.
          */
         public IFormFile? Image { get; set; }
 

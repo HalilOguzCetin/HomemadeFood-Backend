@@ -48,6 +48,12 @@ namespace HomemadeFood.Api.Interfaces
             GetPopularFoodsAsync(
                 int limit);
 
+        Task<FoodResponse?>
+            UpdateFoodAvailabilityAsync(
+                int userId,
+                int foodId,
+                bool isAvailable);
+
         Task<bool> DeleteFoodAsync(
             int userId,
             int foodId);
