@@ -136,7 +136,12 @@ namespace HomemadeFood.Api.Services
                         !item.Food.Category.IsActive ||
 
                         item.Food.ProducerProfileId !=
-                        cart.ProducerProfileId);
+                        cart.ProducerProfileId ||
+
+                        !string.Equals(
+                            item.UnitTypeSnapshot,
+                            item.Food.UnitType,
+                            StringComparison.Ordinal));
 
             if (hasInvalidItem)
             {
@@ -316,6 +321,9 @@ namespace HomemadeFood.Api.Services
 
                         Quantity =
                             cartItem.Quantity,
+
+                        UnitTypeSnapshot =
+                            cartItem.UnitTypeSnapshot,
 
                         UnitPrice =
                             unitPrice,
@@ -499,6 +507,9 @@ namespace HomemadeFood.Api.Services
 
                                     Quantity =
                                         item.Quantity,
+
+                                    UnitType =
+                                        item.UnitTypeSnapshot,
 
                                     UnitPrice =
                                         item.UnitPrice,

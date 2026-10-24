@@ -108,13 +108,5 @@ namespace HomemadeFood.Api.DTOs.Producer
         [Required(ErrorMessage = "Boylam bilgisi zorunludur.")]
         public string Longitude { get; set; } =
             string.Empty;
-
-        [Range(
-            1,
-            1000,
-            ErrorMessage =
-                "Günlük kapasite 1 ile 1000 arasında olmalıdır.")]
-        public int DailyCapacity { get; set; }
-
     }
 }

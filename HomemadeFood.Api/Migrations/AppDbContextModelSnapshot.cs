@@ -145,6 +145,13 @@ namespace HomemadeFood.Api.Migrations
                     b.Property<int>("Quantity")
                         .HasColumnType("int");
 
+                    b.Property<string>("UnitTypeSnapshot")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasDefaultValue("Portion");
+
                     b.HasKey("Id");
 
                     b.HasIndex("FoodId");
@@ -399,6 +406,13 @@ namespace HomemadeFood.Api.Migrations
                     b.Property<decimal>("UnitPrice")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("UnitTypeSnapshot")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasDefaultValue("Portion");
 
                     b.HasKey("Id");
 

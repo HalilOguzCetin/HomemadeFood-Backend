@@ -38,6 +38,9 @@
 
         public decimal Price { get; set; }
 
+        public string UnitType { get; set; } =
+            string.Empty;
+
         public int PreparationTimeMinutes
         {
             get;

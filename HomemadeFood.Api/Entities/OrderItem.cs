@@ -16,6 +16,12 @@
         public string FoodName { get; set; }
             = string.Empty;
 
+        // Sipariş anındaki satış birimi kalıcı olarak saklanır.
+        // Böylece Food.UnitType sonradan değişse bile geçmiş
+        // sipariş kendi orijinal anlamını korur.
+        public string UnitTypeSnapshot { get; set; }
+            = string.Empty;
+
         public int Quantity { get; set; }
 
         public decimal UnitPrice { get; set; }

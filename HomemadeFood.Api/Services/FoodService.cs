@@ -382,6 +382,9 @@ namespace HomemadeFood.Api.Services
                         Price =
                             item.Candidate.Price,
 
+                        UnitType =
+                            item.Candidate.UnitType,
+
                         PreparationTimeMinutes =
                             item.Candidate
                                 .PreparationTimeMinutes,
@@ -755,6 +758,9 @@ namespace HomemadeFood.Api.Services
 
                             Price =
                                 item.Candidate.Price,
+
+                            UnitType =
+                                item.Candidate.UnitType,
 
                             PreparationTimeMinutes =
                                 item.Candidate

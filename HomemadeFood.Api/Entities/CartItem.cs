@@ -12,6 +12,12 @@
 
         public Food Food { get; set; } = null!;
 
+        // Sepete eklendiği andaki satış birimi snapshot'ı.
+        // Food.UnitType daha sonra değişse bile sepetin anlamı
+        // sessizce değişmemelidir.
+        public string UnitTypeSnapshot { get; set; }
+            = string.Empty;
+
         public int Quantity { get; set; }
 
         public DateTime CreatedAt { get; set; }

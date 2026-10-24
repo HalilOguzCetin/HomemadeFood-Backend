@@ -186,6 +186,9 @@ namespace HomemadeFood.Api.Repositories
                             Price =
                                 food.Price,
 
+                            UnitType =
+                                food.UnitType,
+
                             PreparationTimeMinutes =
                                 food
                                     .PreparationTimeMinutes,
@@ -370,6 +373,9 @@ namespace HomemadeFood.Api.Repositories
 
                             Price =
                                 food.Price,
+
+                            UnitType =
+                                food.UnitType,
 
                             PreparationTimeMinutes =
                                 food

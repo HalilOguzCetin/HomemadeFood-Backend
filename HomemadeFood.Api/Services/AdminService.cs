@@ -691,11 +691,6 @@ namespace HomemadeFood.Api.Services
                 Longitude =
                     application.Longitude,
 
-                DailyCapacity =
-                    application.DailyCapacity,
-
-                RemainingCapacity =
-                    application.RemainingCapacity,
 
                 IsAvailable =
                     application.IsAvailable,
@@ -874,15 +869,7 @@ namespace HomemadeFood.Api.Services
 
                 IsProducerAvailable =
                     user.ProducerProfile
-                        ?.IsAvailable,
-
-                DailyCapacity =
-                    user.ProducerProfile
-                        ?.DailyCapacity,
-
-                RemainingCapacity =
-                    user.ProducerProfile
-                        ?.RemainingCapacity
+                        ?.IsAvailable
             };
         }
 

@@ -41,9 +41,5 @@
         public bool? IsProducerApproved { get; set; }
 
         public bool? IsProducerAvailable { get; set; }
-
-        public int? DailyCapacity { get; set; }
-
-        public int? RemainingCapacity { get; set; }
     }
 }

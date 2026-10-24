@@ -560,6 +560,12 @@ namespace HomemadeFood.Api.Data
 
             modelBuilder.Entity<CartItem>(entity =>
             {
+                entity.Property(x => x.UnitTypeSnapshot)
+                    .HasMaxLength(20)
+                    .IsRequired()
+                    .HasDefaultValue(
+                        FoodUnitTypes.Portion);
+
                 entity.HasOne(x => x.Cart)
                     .WithMany(x => x.Items)
                     .HasForeignKey(x => x.CartId)
@@ -677,6 +683,12 @@ namespace HomemadeFood.Api.Data
                 entity.Property(x => x.FoodName)
                     .HasMaxLength(100)
                     .IsRequired();
+
+                entity.Property(x => x.UnitTypeSnapshot)
+                    .HasMaxLength(20)
+                    .IsRequired()
+                    .HasDefaultValue(
+                        FoodUnitTypes.Portion);
 
                 entity.Property(x => x.UnitPrice)
                     .HasPrecision(18, 2);

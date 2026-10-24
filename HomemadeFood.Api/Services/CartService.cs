@@ -40,15 +40,21 @@ namespace HomemadeFood.Api.Services
             var response =
                 MapToResponse(cart);
 
-            if (cart == null)
+            /*
+             * IsCurrentlyOpen çalışma saatleri + manuel
+             * AvailabilityMode üzerinden dinamik hesaplanır.
+             *
+             * CartResponse içinde bu alan set edilmezse bool
+             * varsayılan olarak false döner ve açık işletme
+             * Android tarafında yanlışlıkla kapalı görünebilir.
+             */
+            if (cart != null)
             {
-                return response;
+                response.IsCurrentlyOpen =
+                    await _producerAvailabilityService
+                        .IsProducerCurrentlyOpenAsync(
+                            cart.ProducerProfileId);
             }
-
-            response.IsCurrentlyOpen =
-                await _producerAvailabilityService
-                    .IsProducerCurrentlyOpenAsync(
-                        cart.ProducerProfileId);
 
             return response;
         }
@@ -132,6 +138,7 @@ namespace HomemadeFood.Api.Services
                     new CartItemEntity
                     {
                         FoodId = food.Id,
+                        UnitTypeSnapshot = food.UnitType,
                         Quantity = request.Quantity,
                         CreatedAt = DateTime.UtcNow
                     });
@@ -170,6 +177,17 @@ namespace HomemadeFood.Api.Services
 
                 if (existingItem != null)
                 {
+                    // Sepete eklendikten sonra üretici satış birimini
+                    // değiştirdiyse eski snapshot sessizce yeni birime
+                    // çevrilmez. Ürün yeniden sepete eklenmelidir.
+                    if (!string.Equals(
+                            existingItem.UnitTypeSnapshot,
+                            food.UnitType,
+                            StringComparison.Ordinal))
+                    {
+                        return null;
+                    }
+
                     var newQuantity =
                         existingItem.Quantity +
                         request.Quantity;
@@ -188,6 +206,7 @@ namespace HomemadeFood.Api.Services
                         new CartItemEntity
                         {
                             FoodId = food.Id,
+                            UnitTypeSnapshot = food.UnitType,
                             Quantity = request.Quantity,
                             CreatedAt = DateTime.UtcNow
                         });
@@ -236,6 +255,20 @@ namespace HomemadeFood.Api.Services
                     cartItem.Quantity
             )
             {
+                var currentFood =
+                    await _foodRepository
+                        .GetAvailableFoodByIdAsync(
+                            cartItem.FoodId);
+
+                if (currentFood == null ||
+                    !string.Equals(
+                        cartItem.UnitTypeSnapshot,
+                        currentFood.UnitType,
+                        StringComparison.Ordinal))
+                {
+                    return null;
+                }
+
                 var isProducerCurrentlyOpen =
                     await _producerAvailabilityService
                         .IsProducerCurrentlyOpenAsync(
@@ -356,8 +389,6 @@ namespace HomemadeFood.Api.Services
 
                     BusinessName = string.Empty,
 
-                    IsCurrentlyOpen = false,
-
                     Items =
                         new List<CartItemResponse>(),
 
@@ -374,6 +405,12 @@ namespace HomemadeFood.Api.Services
                     .Select(
                         x =>
                         {
+                            var isUnitTypeCurrent =
+                                string.Equals(
+                                    x.UnitTypeSnapshot,
+                                    x.Food.UnitType,
+                                    StringComparison.Ordinal);
+
                             var isAvailable =
                                 x.Food.IsAvailable &&
 
@@ -397,6 +434,10 @@ namespace HomemadeFood.Api.Services
                                 FoodName = x.Food.Name,
                                 ImageUrl = x.Food.ImageUrl,
                                 UnitPrice = x.Food.Price,
+                                UnitType =
+                                    x.UnitTypeSnapshot,
+                                IsUnitTypeCurrent =
+                                    isUnitTypeCurrent,
                                 Quantity = x.Quantity,
 
                                 LineTotal =

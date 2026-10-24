@@ -12,6 +12,16 @@ namespace HomemadeFood.Api.Services
 {
     public class ProducerService : IProducerService
     {
+        /*
+         * GEÇİCİ UYUMLULUK:
+         * ProducerProfile seviyesindeki kapasite kolonları eski Order /
+         * Recommendation akışları Food-level kapasiteye taşınana kadar DB'de
+         * tutuluyor. Yeni başvurularda kullanıcıdan genel kapasite alınmaz.
+         * Bu değer yalnız eski akışların yeni profili 0 kapasite kabul edip
+         * yanlışlıkla bloke etmesini önler; ürün kapasitesi değildir.
+         */
+        private const int LegacyProducerCapacityCompatibilityValue = 1000;
+
         private readonly IProducerRepository _producerRepository;
         private readonly IProducerImageStorageService
             _producerImageStorageService;
@@ -148,11 +158,6 @@ namespace HomemadeFood.Api.Services
                     "Boylam bilgisi geçersizdir.");
             }
 
-            if (request.DailyCapacity < 1 ||
-                request.DailyCapacity > 1000)
-            {
-                return false;
-            }
 
             var existingApplication =
                 await _producerRepository
@@ -232,11 +237,12 @@ namespace HomemadeFood.Api.Services
                             Latitude = latitude,
                             Longitude = longitude,
 
+                            // Legacy kapasite yalnız geçiş uyumluluğu için tutulur.
                             DailyCapacity =
-                                request.DailyCapacity,
+                                LegacyProducerCapacityCompatibilityValue,
 
                             RemainingCapacity =
-                                request.DailyCapacity,
+                                LegacyProducerCapacityCompatibilityValue,
 
                             CapacityDate =
                                 _appClock.TurkeyToday,
@@ -318,14 +324,6 @@ namespace HomemadeFood.Api.Services
                 latitude,
                 longitude);
 
-            existingApplication.DailyCapacity =
-                request.DailyCapacity;
-
-            existingApplication.RemainingCapacity =
-                request.DailyCapacity;
-
-            existingApplication.CapacityDate =
-                _appClock.TurkeyToday;
 
             existingApplication.IsAvailable =
                 false;
@@ -728,11 +726,6 @@ namespace HomemadeFood.Api.Services
                     "Boylam bilgisi geçersizdir.");
             }
 
-            if (request.DailyCapacity < 1 ||
-                request.DailyCapacity > 1000)
-            {
-                return null;
-            }
 
             var producerProfile =
                 await _producerRepository
@@ -755,32 +748,6 @@ namespace HomemadeFood.Api.Services
                 return null;
             }
 
-            var today =
-                _appClock.TurkeyToday;
-
-            int usedCapacity;
-
-            if (producerProfile.CapacityDate !=
-                today)
-            {
-                usedCapacity = 0;
-            }
-            else
-            {
-                usedCapacity =
-                    Math.Max(
-                        0,
-                        producerProfile
-                            .DailyCapacity -
-                        producerProfile
-                            .RemainingCapacity);
-            }
-
-            var newRemainingCapacity =
-                Math.Max(
-                    0,
-                    request.DailyCapacity -
-                    usedCapacity);
 
             var oldBusinessImageUrl =
                 producerProfile.BusinessImageUrl;
@@ -827,15 +794,6 @@ namespace HomemadeFood.Api.Services
                 addressNote,
                 latitude,
                 longitude);
-
-            producerProfile.DailyCapacity =
-                request.DailyCapacity;
-
-            producerProfile.RemainingCapacity =
-                newRemainingCapacity;
-
-            producerProfile.CapacityDate =
-                today;
 
 
             producerProfile.CapacityVersion++;
@@ -2052,6 +2010,9 @@ namespace HomemadeFood.Api.Services
                                             Price =
                                                 food.Price,
 
+                                            UnitType =
+                                                food.UnitType,
+
                                             PreparationTimeMinutes =
                                                 food
                                                     .PreparationTimeMinutes,
@@ -2205,11 +2166,6 @@ namespace HomemadeFood.Api.Services
                 Longitude =
                     producerProfile.Longitude,
 
-                DailyCapacity =
-                    producerProfile.DailyCapacity,
-
-                RemainingCapacity =
-                    producerProfile.RemainingCapacity,
 
                 IsAvailable =
                     producerProfile.IsAvailable,
